@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import ServiceManagement
 
 /// Central observable state for the entire app.
 @MainActor
@@ -40,4 +41,13 @@ final class AppState: ObservableObject {
     // MARK: - Onboarding
 
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
+
+    // MARK: - Init
+
+    init() {
+        // Sync launch-at-login state with the system
+        if #available(macOS 13.0, *) {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
 }

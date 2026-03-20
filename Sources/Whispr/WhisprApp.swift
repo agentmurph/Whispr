@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import ServiceManagement
 
 @main
 struct WhisprApp: App {
@@ -15,6 +16,7 @@ struct WhisprApp: App {
 
     @State private var elapsedTimer: Timer?
     @State private var levelCancellable: AnyCancellable?
+    @State private var modelCancellable: AnyCancellable?
     @State private var onboardingWindow: NSWindow?
     @State private var showSettings = false
 
@@ -102,6 +104,14 @@ struct WhisprApp: App {
 
         // Load selected model if available
         loadModelIfNeeded()
+
+        // Reload model when selection changes
+        modelCancellable = appState.$selectedModel
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [self] _ in
+                self.loadModelIfNeeded()
+            }
 
         // Show onboarding if first launch
         if !appState.hasCompletedOnboarding {

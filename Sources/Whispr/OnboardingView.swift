@@ -9,6 +9,7 @@ struct OnboardingView: View {
 
     @State private var step: OnboardingStep = .welcome
     @State private var micGranted = false
+    @State private var downloadFailed = false
 
     enum OnboardingStep: Int, CaseIterable {
         case welcome
@@ -20,10 +21,20 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            // Step indicators
+            HStack(spacing: 8) {
+                ForEach(OnboardingStep.allCases, id: \.rawValue) { s in
+                    Circle()
+                        .fill(s.rawValue <= step.rawValue ? Color.accentColor : Color.gray.opacity(0.3))
+                        .frame(width: 8, height: 8)
+                }
+            }
+            .padding(.top, 8)
+
             stepContent
         }
         .padding(40)
-        .frame(width: 480, height: 400)
+        .frame(width: 500, height: 420)
     }
 
     @ViewBuilder
@@ -90,6 +101,11 @@ struct OnboardingView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+
+            Button("Skip") { step = .accessibility }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .font(.caption)
         }
     }
 
@@ -138,11 +154,40 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
 
             if modelManager.isDownloading {
-                ProgressView(value: modelManager.downloadProgress)
-                    .progressViewStyle(.linear)
-                Text("\(Int(modelManager.downloadProgress * 100))%")
+                VStack(spacing: 8) {
+                    ProgressView(value: modelManager.downloadProgress)
+                        .progressViewStyle(.linear)
+
+                    HStack {
+                        Text("\(Int(modelManager.downloadProgress * 100))%")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        if modelManager.totalBytes > 0 {
+                            Text("\(ModelManager.formatBytes(modelManager.bytesDownloaded)) / \(ModelManager.formatBytes(modelManager.totalBytes))")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(ModelManager.formatBytes(modelManager.bytesDownloaded))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Button("Cancel") {
+                        modelManager.cancelDownload()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+
+            if let error = modelManager.downloadError {
+                Text(error)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.red)
             }
 
             Spacer()
@@ -154,7 +199,11 @@ struct OnboardingView: View {
             } else if !modelManager.isDownloading {
                 Button("Download Model") {
                     Task {
-                        try? await modelManager.download(.baseEn)
+                        do {
+                            try await modelManager.download(.baseEn)
+                        } catch {
+                            downloadFailed = true
+                        }
                     }
                 }
                 .buttonStyle(.borderedProminent)
