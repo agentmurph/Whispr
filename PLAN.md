@@ -8,12 +8,17 @@ An English-only, privacy-first, one-click-install macOS app that uses OpenAI's W
 
 ## What It Does (MVP)
 
-1. **Global hotkey** (e.g., `⌥ Space`) — hold to record, release to transcribe
-2. **Transcribes locally** using whisper.cpp with CoreML acceleration on Apple Silicon
-3. **Types the text** into whatever app has focus (simulated keystrokes via macOS Accessibility API)
-4. **Menu bar app** — lives in the menu bar, minimal UI, always ready
-5. **One-click install** — download DMG, drag to Applications, done. First launch downloads the Whisper model (~75MB for `small.en`)
-6. **English only** — simpler, faster, smaller models, better accuracy for one language
+1. **Global hotkey toggle** (e.g., `⌥ Space`) — press once to start recording, press again to stop and transcribe
+2. **Recording overlay** — when recording, shows a floating panel with:
+   - Live audio activity/volume meter (waveform or level bar)
+   - Stop button (same as pressing hotkey again)
+   - Cancel button (discard recording)
+   - Visual feedback: recording duration, pulsing indicator
+3. **Transcribes locally** using whisper.cpp with CoreML acceleration on Apple Silicon
+4. **Types the text** into whatever app has focus (simulated keystrokes via macOS Accessibility API)
+5. **Menu bar app** — lives in the menu bar, minimal UI, always ready
+6. **One-click install** — download DMG, drag to Applications, done. First launch downloads the Whisper model (~142MB for `base.en`)
+7. **English only** — simpler, faster, smaller models, better accuracy for one language
 
 ## What Makes It Different from Wisprflow
 
@@ -90,12 +95,15 @@ All models run locally with CoreML acceleration on Apple Silicon. Intel Macs fal
 - Click to toggle recording (alternative to hotkey)
 - Dropdown: Settings, About, Quit
 
-### Recording HUD
-- Small floating overlay near cursor showing:
-  - 🔴 "Recording..." with audio waveform
-  - ⏳ "Transcribing..." with spinner
-  - ✅ Brief flash of transcribed text before injection
-- Auto-dismisses after injection
+### Recording Overlay (Toggle UI)
+- Floating panel appears when recording starts (centered or near cursor):
+  - 🔴 **Recording state**: pulsing red dot, elapsed time counter
+  - 📊 **Live volume meter**: real-time audio level visualization (bar or waveform)
+  - ⏹️ **Stop button**: stops recording and transcribes (same as pressing hotkey again)
+  - ❌ **Cancel button**: discards recording, closes overlay
+  - ⌨️ **Hotkey hint**: shows "Press ⌥Space to stop" reminder
+  - ⏳ **Transcribing state**: spinner + "Transcribing..." after stop
+  - ✅ **Done**: brief flash of transcribed text, then auto-injects and closes
 
 ### Settings Window
 - **General**: Launch at login, menu bar icon style

@@ -1,0 +1,14 @@
+# Swift / Xcode / SPM
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcodeproj/xcuserdata
+*.playground/playground.xcworkspace
+Package.resolved
+
+# Models (large binary files)
+*.bin
