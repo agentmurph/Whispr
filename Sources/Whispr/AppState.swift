@@ -89,6 +89,10 @@ final class AppState: ObservableObject {
         )
     }
 
+    // MARK: - Voice Commands
+
+    @AppStorage("voiceCommands.enabled") var voiceCommandsEnabled: Bool = false
+
     // MARK: - Onboarding
 
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false

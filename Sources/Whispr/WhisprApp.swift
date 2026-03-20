@@ -209,8 +209,18 @@ struct WhisprApp: App {
                 }
                 appState.transcribedText = text
 
-                // Inject text (auto-detects secure fields and falls back to clipboard paste)
-                TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
+                // Process voice commands if enabled, otherwise inject text directly
+                if appState.voiceCommandsEnabled {
+                    let commandResult = VoiceCommandProcessor.process(text)
+                    if !commandResult.actions.isEmpty {
+                        VoiceCommandProcessor.execute(commandResult.actions, preferClipboard: appState.useClipboardFallback)
+                    } else {
+                        TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
+                    }
+                } else {
+                    // Inject text (auto-detects secure fields and falls back to clipboard paste)
+                    TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
+                }
             } catch {
                 print("Transcription error: \(error)")
             }

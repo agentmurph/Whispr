@@ -29,6 +29,9 @@ struct SettingsView: View {
             modelTab
                 .tabItem { Label("Models", systemImage: "brain") }
 
+            languageTab
+                .tabItem { Label("Language", systemImage: "globe") }
+
             audioTab
                 .tabItem { Label("Audio", systemImage: "mic") }
         }
@@ -103,6 +106,35 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
             }
 
+            Section("Voice Commands") {
+                Toggle("Enable voice commands", isOn: $appState.voiceCommandsEnabled)
+                    Text("Say commands like \"new line\", \"period\", \"select all\", \"undo\", \"copy\", \"paste\" and they'll be executed as actions instead of typed as text.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                if appState.voiceCommandsEnabled {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Available commands:")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+
+                        Group {
+                            commandHelpRow("\"new line\"", "Insert line break")
+                            commandHelpRow("\"new paragraph\"", "Insert two line breaks")
+                            commandHelpRow("\"period\" / \"comma\"", "Insert punctuation")
+                            commandHelpRow("\"question mark\"", "Insert ?")
+                            commandHelpRow("\"exclamation point\"", "Insert !")
+                            commandHelpRow("\"select all\"", "⌘A")
+                            commandHelpRow("\"undo\"", "⌘Z")
+                            commandHelpRow("\"copy\"", "⌘C")
+                            commandHelpRow("\"paste\"", "⌘V")
+                            commandHelpRow("\"cut\"", "⌘X")
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             Section {
                 Text("These transformations are applied to transcribed text before it's typed into the target app.")
                     .font(.caption)
@@ -111,6 +143,20 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private func commandHelpRow(_ command: String, _ description: String) -> some View {
+        HStack(spacing: 8) {
+            Text(command)
+                .font(.caption.monospaced())
+                .foregroundStyle(.primary)
+            Text("→")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            Text(description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     // MARK: - Per-App Hotkey Profiles
@@ -167,8 +213,20 @@ struct SettingsView: View {
 
     private var modelTab: some View {
         Form {
-            Section("Whisper Model") {
-                ForEach(WhisperModel.allCases) { model in
+            Section {
+                Text("English-only models are faster and more accurate for English. Multilingual models support 99 languages with auto-detection.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("English-Only Models") {
+                ForEach(WhisperModel.englishOnly) { model in
+                    modelRow(model)
+                }
+            }
+
+            Section("Multilingual Models") {
+                ForEach(WhisperModel.multilingual) { model in
                     modelRow(model)
                 }
             }
@@ -226,6 +284,8 @@ struct SettingsView: View {
                     Text(model.sizeLabel)
                     Text("•")
                     Text(model.speedLabel)
+                    Text("•")
+                    Text(model.languageLabel)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -266,6 +326,67 @@ struct SettingsView: View {
                 .disabled(modelManager.isDownloading)
             }
         }
+    }
+
+    // MARK: - Language
+
+    private var languageTab: some View {
+        Form {
+            if appState.selectedModel.isEnglishOnly {
+                Section {
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .foregroundStyle(.secondary)
+                        Text("Language is locked to English when using an English-only model.")
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Switch to a multilingual model in the Models tab to enable language selection.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            } else {
+                Section("Transcription Language") {
+                    Picker("Language", selection: $appState.selectedLanguageCode) {
+                        Label("Auto-detect", systemImage: "wand.and.stars")
+                            .tag("auto")
+
+                        Divider()
+
+                        ForEach(WhisperEngine.commonLanguages, id: \.code) { lang in
+                            Text("\(WhisperEngine.languageFlag(for: lang.code)) \(lang.name)")
+                                .tag(lang.code)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Section {
+                    if appState.selectedLanguageCode == "auto" {
+                        Label("Whisper will automatically detect the spoken language.", systemImage: "sparkles")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        let name = WhisperEngine.languageDisplayName(for: appState.selectedLanguageCode)
+                        Label("Transcription will be optimized for \(name).", systemImage: "text.bubble")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if let lastLang = appState.detectedLanguage {
+                Section("Last Detected Language") {
+                    HStack {
+                        Text(WhisperEngine.languageFlag(for: lastLang))
+                            .font(.title2)
+                        Text(WhisperEngine.languageDisplayName(for: lastLang))
+                            .font(.headline)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 
     // MARK: - Audio
