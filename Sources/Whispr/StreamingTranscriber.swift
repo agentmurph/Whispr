@@ -112,7 +112,7 @@ final class StreamingTranscriber: ObservableObject {
             lastTranscribedSampleCount = sampleCount
         } catch {
             // Silently skip failed chunks — next one will retry
-            print("Streaming chunk transcription error: \(error)")
+            WhisprLogger.error("Streaming chunk transcription error: \(error)")
         }
     }
 

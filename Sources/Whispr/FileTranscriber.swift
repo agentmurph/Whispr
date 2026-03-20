@@ -134,7 +134,8 @@ final class FileTranscriber: ObservableObject {
 
         do {
             // Step 1: Convert to PCM
-            let (samples, duration) = try await convertToPCM(url: jobs[index].fileURL) { [weak self] progress in
+            let fileURL = jobs[index].fileURL
+            let (samples, duration) = try await convertToPCM(url: fileURL) { [weak self] progress in
                 Task { @MainActor in
                     guard let self, index < self.jobs.count else { return }
                     self.jobs[index].progress = progress * 0.3  // conversion = 30% of total

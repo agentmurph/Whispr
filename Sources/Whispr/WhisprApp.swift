@@ -117,6 +117,10 @@ struct WhisprApp: App {
                 self.loadModelIfNeeded()
             }
 
+        // Initialize file logger
+        WhisprLogger.setup()
+        WhisprLogger.info("App started, model: \(appState.selectedModel.rawValue)")
+
         // Show onboarding if first launch
         if !appState.hasCompletedOnboarding {
             showOnboardingWindow()
@@ -140,6 +144,7 @@ struct WhisprApp: App {
 
     @MainActor
     private func startRecording() {
+        WhisprLogger.info("Recording started (streaming=\(appState.streamingEnabled))")
         do {
             try audioEngine.start()
             appState.phase = .recording
@@ -178,12 +183,13 @@ struct WhisprApp: App {
                 onCancel: { @MainActor in self.cancelRecording() }
             )
         } catch {
-            print("Failed to start audio: \(error)")
+            WhisprLogger.error("Failed to start audio: \(error)")
         }
     }
 
     @MainActor
     private func stopAndTranscribe() {
+        WhisprLogger.info("Recording stopped, beginning transcription")
         elapsedTimer?.invalidate()
         elapsedTimer = nil
 
@@ -283,7 +289,7 @@ struct WhisprApp: App {
                     }
                 }
             } catch {
-                print("Transcription error: \(error)")
+                WhisprLogger.error("Transcription failed: \(error)")
                 // Always copy error to clipboard so user knows something happened
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
@@ -375,11 +381,12 @@ struct WhisprApp: App {
         )
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 550, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 580, height: 520),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "Whispr Settings"
         window.contentView = NSHostingView(rootView: settingsView)
         window.center()
@@ -393,8 +400,13 @@ struct WhisprApp: App {
             appState: appState,
             modelManager: modelManager,
             onComplete: { @MainActor in
-                self.onboardingWindow?.close()
-                self.onboardingWindow = nil
+                // Defer window close to next run loop iteration so the
+                // button action that called onComplete finishes first,
+                // avoiding a use-after-free on the hosting view.
+                DispatchQueue.main.async {
+                    self.onboardingWindow?.close()
+                    self.onboardingWindow = nil
+                }
             }
         )
 
@@ -404,6 +416,7 @@ struct WhisprApp: App {
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.title = "Welcome to Whispr"
         window.contentView = NSHostingView(rootView: onboardingView)
         window.center()

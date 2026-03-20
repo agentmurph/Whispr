@@ -42,7 +42,7 @@ struct SettingsView: View {
             audioTab
                 .tabItem { Label("Audio", systemImage: "mic") }
         }
-        .frame(width: 500, height: 420)
+        .frame(minWidth: 520, minHeight: 450)
     }
 
     // MARK: - General
@@ -51,122 +51,123 @@ struct SettingsView: View {
     @State private var globalHotkeyBinding: HotkeyBinding?
 
     private var generalTab: some View {
-        Form {
-            // MARK: Permissions Status
-            Section("Permissions") {
-                HStack {
-                    Image(systemName: "mic.fill")
-                        .foregroundStyle(micPermissionGranted ? .green : .red)
-                    Text("Microphone")
-                    Spacer()
-                    if micPermissionGranted {
-                        Label("Granted", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                    } else {
-                        Button("Grant") {
-                            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+        ScrollView {
+            Form {
+                // MARK: Permissions Status
+                Section("Permissions") {
+                    HStack {
+                        Image(systemName: "mic.fill")
+                            .foregroundStyle(micPermissionGranted ? .green : .red)
+                        Text("Microphone")
+                        Spacer()
+                        if micPermissionGranted {
+                            Label("Granted", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        } else {
+                            Button("Grant") {
+                                AVCaptureDevice.requestAccess(for: .audio) { _ in }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
                     }
-                }
 
-                HStack {
-                    Image(systemName: "hand.raised.fill")
-                        .foregroundStyle(AXIsProcessTrusted() ? .green : .red)
-                    Text("Accessibility")
-                    Spacer()
-                    if AXIsProcessTrusted() {
-                        Label("Granted", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                    } else {
-                        Button("Grant Access") {
-                            let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
-                            let _ = AXIsProcessTrustedWithOptions(options)
+                    HStack {
+                        Image(systemName: "hand.raised.fill")
+                            .foregroundStyle(AXIsProcessTrusted() ? .green : .red)
+                        Text("Accessibility")
+                        Spacer()
+                        if AXIsProcessTrusted() {
+                            Label("Granted", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        } else {
+                            Button("Grant Access") {
+                                let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
+                                let _ = AXIsProcessTrustedWithOptions(options)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                    }
+
+                    if !AXIsProcessTrusted() {
+                        Text("Without Accessibility, Whispr can only copy text to clipboard (⌘V to paste). Grant access for auto-typing.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
 
-                if !AXIsProcessTrusted() {
-                    Text("Without Accessibility, Whispr can only copy text to clipboard (⌘V to paste). Grant access for auto-typing.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-
-            // MARK: Global Hotkey
-            Section("Global Hotkey") {
-                HStack {
-                    Text("Toggle Recording")
-                    Spacer()
-                    Text(globalHotkeyBinding?.displayString ?? appState.globalHotkeyDisplay)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
-                }
-
-                HStack {
-                    Picker("Trigger Mode", selection: $appState.triggerModeRaw) {
-                        Text("Toggle (press to start/stop)").tag("toggle")
-                        Text("Hold to Talk (hold to record)").tag("hold")
+                // MARK: Global Hotkey
+                Section("Global Hotkey") {
+                    HStack {
+                        Text("Toggle Recording")
+                        Spacer()
+                        Text(globalHotkeyBinding?.displayString ?? appState.globalHotkeyDisplay)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                     }
-                    .pickerStyle(.menu)
-                }
 
-                HStack {
-                    Button(isRecordingGlobalHotkey ? "Press any key combo…" : "Change Hotkey") {
-                        isRecordingGlobalHotkey = true
+                    HStack {
+                        Picker("Trigger Mode", selection: $appState.triggerModeRaw) {
+                            Text("Toggle (press to start/stop)").tag("toggle")
+                            Text("Hold to Talk (hold to record)").tag("hold")
+                        }
+                        .pickerStyle(.menu)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
 
-                    if globalHotkeyBinding != nil {
-                        Button("Reset to ⌥ Space") {
-                            globalHotkeyBinding = nil
-                            appState.globalHotkeyKeyCode = 49 // space
-                            appState.globalHotkeyModifiers = Int(NSEvent.ModifierFlags.option.rawValue)
-                            appState.globalHotkeyDisplay = "⌥ Space"
+                    HStack {
+                        Button(isRecordingGlobalHotkey ? "Press any key combo…" : "Change Hotkey") {
+                            isRecordingGlobalHotkey = true
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+
+                        if globalHotkeyBinding != nil {
+                            Button("Reset to ⌥ Space") {
+                                globalHotkeyBinding = nil
+                                appState.globalHotkeyKeyCode = 49 // space
+                                appState.globalHotkeyModifiers = Int(NSEvent.ModifierFlags.option.rawValue)
+                                appState.globalHotkeyDisplay = "⌥ Space"
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
                     }
+                    .background(
+                        HotkeyRecorderBackground(isActive: $isRecordingGlobalHotkey, onRecord: { binding in
+                            globalHotkeyBinding = binding
+                            appState.globalHotkeyKeyCode = Int(binding.keyCode)
+                            appState.globalHotkeyModifiers = Int(binding.modifiers)
+                            appState.globalHotkeyDisplay = binding.displayString
+                            isRecordingGlobalHotkey = false
+                        })
+                    )
                 }
-                .background(
-                    HotkeyRecorderBackground(isActive: $isRecordingGlobalHotkey, onRecord: { binding in
-                        globalHotkeyBinding = binding
-                        appState.globalHotkeyKeyCode = Int(binding.keyCode)
-                        appState.globalHotkeyModifiers = Int(binding.modifiers)
-                        appState.globalHotkeyDisplay = binding.displayString
-                        isRecordingGlobalHotkey = false
-                    })
-                )
-            }
 
-            // MARK: Startup
-            Section("Startup") {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { appState.launchAtLogin },
-                    set: { newValue in
-                        appState.launchAtLogin = newValue
-                        LaunchAtLoginManager.setEnabled(newValue)
-                    }
-                ))
-            }
+                // MARK: Startup
+                Section("Startup") {
+                    Toggle("Launch at login", isOn: Binding(
+                        get: { appState.launchAtLogin },
+                        set: { newValue in
+                            appState.launchAtLogin = newValue
+                            LaunchAtLoginManager.setEnabled(newValue)
+                        }
+                    ))
+                }
 
-            // MARK: Text Injection
-            Section("Text Injection") {
-                Toggle("Always use clipboard paste (⌘V)", isOn: $appState.useClipboardFallback)
-                Text("Enable this if text isn't appearing in apps. Text is always copied to clipboard as a backup regardless of this setting.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // MARK: Text Injection
+                Section("Text Injection") {
+                    Toggle("Always use clipboard paste (⌘V)", isOn: $appState.useClipboardFallback)
+                    Text("Enable this if text isn't appearing in apps. Text is always copied to clipboard as a backup regardless of this setting.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     private var micPermissionGranted: Bool {
@@ -176,74 +177,75 @@ struct SettingsView: View {
     // MARK: - Text Processing
 
     private var textProcessingTab: some View {
-        Form {
-            Section("Basic") {
-                Toggle("Trim leading/trailing whitespace", isOn: $appState.trimWhitespace)
-                Toggle("Auto-capitalize first letter of sentences", isOn: $appState.autoCapitalize)
-                Toggle("Ensure sentences end with punctuation", isOn: $appState.ensurePunctuation)
-            }
+        ScrollView {
+            Form {
+                Section("Basic") {
+                    Toggle("Trim leading/trailing whitespace", isOn: $appState.trimWhitespace)
+                    Toggle("Auto-capitalize first letter of sentences", isOn: $appState.autoCapitalize)
+                    Toggle("Ensure sentences end with punctuation", isOn: $appState.ensurePunctuation)
+                }
 
-            Section("Formatting") {
-                Toggle("Smart quotes (curly quotes)", isOn: $appState.smartQuotes)
-                    Text("Replace straight quotes \" ' with typographic curly quotes.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                Toggle("Spell out small numbers (0–10)", isOn: $appState.numberFormatting)
-                    Text("Converts standalone digits like \"3\" → \"three\".")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-            }
-
-            Section("Cleanup") {
-                Toggle("Remove filler words (um, uh, you know…)", isOn: $appState.removeFillerWords)
-                    Text("Strips common speech fillers from transcription.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                Toggle("Auto-paragraph on long pauses", isOn: $appState.autoParagraph)
-                    Text("Inserts line breaks when whisper detects a pause ≥ 2 seconds between segments.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-            }
-
-            Section("Voice Commands") {
-                Toggle("Enable voice commands", isOn: $appState.voiceCommandsEnabled)
-                    Text("Say commands like \"new line\", \"period\", \"select all\", \"undo\", \"copy\", \"paste\" and they'll be executed as actions instead of typed as text.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                if appState.voiceCommandsEnabled {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Available commands:")
-                            .font(.caption.bold())
+                Section("Formatting") {
+                    Toggle("Smart quotes (curly quotes)", isOn: $appState.smartQuotes)
+                        Text("Replace straight quotes \" ' with typographic curly quotes.")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Group {
-                            commandHelpRow("\"new line\"", "Insert line break")
-                            commandHelpRow("\"new paragraph\"", "Insert two line breaks")
-                            commandHelpRow("\"period\" / \"comma\"", "Insert punctuation")
-                            commandHelpRow("\"question mark\"", "Insert ?")
-                            commandHelpRow("\"exclamation point\"", "Insert !")
-                            commandHelpRow("\"select all\"", "⌘A")
-                            commandHelpRow("\"undo\"", "⌘Z")
-                            commandHelpRow("\"copy\"", "⌘C")
-                            commandHelpRow("\"paste\"", "⌘V")
-                            commandHelpRow("\"cut\"", "⌘X")
+                    Toggle("Spell out small numbers (0–10)", isOn: $appState.numberFormatting)
+                        Text("Converts standalone digits like \"3\" → \"three\".")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                }
+
+                Section("Cleanup") {
+                    Toggle("Remove filler words (um, uh, you know…)", isOn: $appState.removeFillerWords)
+                        Text("Strips common speech fillers from transcription.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                    Toggle("Auto-paragraph on long pauses", isOn: $appState.autoParagraph)
+                        Text("Inserts line breaks when whisper detects a pause ≥ 2 seconds between segments.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                }
+
+                Section("Voice Commands") {
+                    Toggle("Enable voice commands", isOn: $appState.voiceCommandsEnabled)
+                        Text("Say commands like \"new line\", \"period\", \"select all\", \"undo\", \"copy\", \"paste\" and they'll be executed as actions instead of typed as text.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                    if appState.voiceCommandsEnabled {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Available commands:")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+
+                            Group {
+                                commandHelpRow("\"new line\"", "Insert line break")
+                                commandHelpRow("\"new paragraph\"", "Insert two line breaks")
+                                commandHelpRow("\"period\" / \"comma\"", "Insert punctuation")
+                                commandHelpRow("\"question mark\"", "Insert ?")
+                                commandHelpRow("\"exclamation point\"", "Insert !")
+                                commandHelpRow("\"select all\"", "⌘A")
+                                commandHelpRow("\"undo\"", "⌘Z")
+                                commandHelpRow("\"copy\"", "⌘C")
+                                commandHelpRow("\"paste\"", "⌘V")
+                                commandHelpRow("\"cut\"", "⌘X")
+                            }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                }
+
+                Section {
+                    Text("These transformations are applied to transcribed text before it's typed into the target app.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-
-            Section {
-                Text("These transformations are applied to transcribed text before it's typed into the target app.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     private func commandHelpRow(_ command: String, _ description: String) -> some View {
@@ -263,65 +265,66 @@ struct SettingsView: View {
     // MARK: - Per-App Hotkey Profiles
 
     private var hotkeyProfilesTab: some View {
-        Form {
-            Section("Per-App Hotkeys") {
-                if hotkeyProfileManager.profiles.isEmpty {
-                    Text("No app-specific hotkeys configured.\nThe global hotkey (⌥Space) is used everywhere.")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                } else {
-                    ForEach(hotkeyProfileManager.profiles) { profile in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(profile.appName)
-                                    .font(.headline)
-                                Text(profile.bundleIdentifier)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+        ScrollView {
+            Form {
+                Section("Per-App Hotkeys") {
+                    if hotkeyProfileManager.profiles.isEmpty {
+                        Text("No app-specific hotkeys configured.\nThe global hotkey (⌥Space) is used everywhere.")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    } else {
+                        ForEach(hotkeyProfileManager.profiles) { profile in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(profile.appName)
+                                        .font(.headline)
+                                    Text(profile.bundleIdentifier)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text(profile.binding.displayString)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                                Button(role: .destructive) {
+                                    hotkeyProfileManager.removeProfile(bundleID: profile.bundleIdentifier)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
-                            Spacer()
-                            Text(profile.binding.displayString)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
-                            Button(role: .destructive) {
-                                hotkeyProfileManager.removeProfile(bundleID: profile.bundleIdentifier)
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                         }
                     }
                 }
-            }
 
-            Section("Add App Profile") {
-                AddHotkeyProfileView(profileManager: hotkeyProfileManager)
-            }
+                Section("Add App Profile") {
+                    AddHotkeyProfileView(profileManager: hotkeyProfileManager)
+                }
 
-            Section {
-                Text("When a per-app hotkey is set, it overrides the global hotkey while that app is focused. If no profile matches, the global hotkey (⌥Space) is used.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Section {
+                    Text("When a per-app hotkey is set, it overrides the global hotkey while that app is focused. If no profile matches, the global hotkey (⌥Space) is used.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     // MARK: - Streaming
 
     private var streamingTab: some View {
-        Form {
-            Section("Real-Time Streaming") {
-                Toggle("Enable streaming transcription", isOn: $appState.streamingEnabled)
-                Text("Transcribe audio in chunks while you're still speaking. Shows live preview in the recording overlay.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        ScrollView {
+            Form {
+                Section("Real-Time Streaming") {
+                    Toggle("Enable streaming transcription", isOn: $appState.streamingEnabled)
+                    Text("Transcribe audio in chunks while you're still speaking. Shows live preview in the recording overlay.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            if appState.streamingEnabled {
                 Section("Chunk Interval") {
                     Picker("Transcribe every", selection: $appState.streamingChunkInterval) {
                         ForEach(ChunkInterval.allCases) { interval in
@@ -333,14 +336,13 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .opacity(appState.streamingEnabled ? 1 : 0.4)
+                .disabled(!appState.streamingEnabled)
 
                 Section("Output Speed") {
-                    Picker("Word output speed", selection: Binding(
-                        get: { appState.streamingOutputSpeed },
-                        set: { appState.streamingOutputSpeed = $0 }
-                    )) {
+                    Picker("Word output speed", selection: $appState.streamingOutputSpeedRaw) {
                         ForEach(OutputSpeed.allCases) { speed in
-                            Text(speed.displayName).tag(speed)
+                            Text(speed.displayName).tag(speed.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -348,6 +350,8 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .opacity(appState.streamingEnabled ? 1 : 0.4)
+                .disabled(!appState.streamingEnabled)
 
                 Section("Draft + Final Mode") {
                     Toggle("Re-transcribe with full model after recording stops", isOn: $appState.streamingDraftAndFinal)
@@ -361,69 +365,71 @@ struct SettingsView: View {
                             .foregroundStyle(.orange)
                     }
                 }
+                .opacity(appState.streamingEnabled ? 1 : 0.4)
+                .disabled(!appState.streamingEnabled)
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     // MARK: - Models
 
     private var modelTab: some View {
-        Form {
-            Section {
-                Text("English-only models are faster and more accurate for English. Multilingual models support 99 languages with auto-detection.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("English-Only Models") {
-                ForEach(WhisperModel.englishOnly) { model in
-                    modelRow(model)
-                }
-            }
-
-            Section("Multilingual Models") {
-                ForEach(WhisperModel.multilingual) { model in
-                    modelRow(model)
-                }
-            }
-
-            if modelManager.isDownloading, let current = modelManager.currentDownload {
-                Section("Downloading \(current.displayName)") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ProgressView(value: modelManager.downloadProgress)
-                            .progressViewStyle(.linear)
-
-                        HStack {
-                            Text("\(Int(modelManager.downloadProgress * 100))%")
-                                .font(.caption.monospacedDigit())
-                            Spacer()
-                            if modelManager.totalBytes > 0 {
-                                Text("\(ModelManager.formatBytes(modelManager.bytesDownloaded)) / \(ModelManager.formatBytes(modelManager.totalBytes))")
-                                    .font(.caption.monospacedDigit())
-                            }
-                        }
+        ScrollView {
+            Form {
+                Section {
+                    Text("English-only models are faster and more accurate for English. Multilingual models support 99 languages with auto-detection.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                }
 
-                        Button("Cancel Download") {
-                            modelManager.cancelDownload()
+                Section("English-Only Models") {
+                    ForEach(WhisperModel.englishOnly) { model in
+                        modelRow(model)
+                    }
+                }
+
+                Section("Multilingual Models") {
+                    ForEach(WhisperModel.multilingual) { model in
+                        modelRow(model)
+                    }
+                }
+
+                if modelManager.isDownloading, let current = modelManager.currentDownload {
+                    Section("Downloading \(current.displayName)") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: modelManager.downloadProgress)
+                                .progressViewStyle(.linear)
+
+                            HStack {
+                                Text("\(Int(modelManager.downloadProgress * 100))%")
+                                    .font(.caption.monospacedDigit())
+                                Spacer()
+                                if modelManager.totalBytes > 0 {
+                                    Text("\(ModelManager.formatBytes(modelManager.bytesDownloaded)) / \(ModelManager.formatBytes(modelManager.totalBytes))")
+                                        .font(.caption.monospacedDigit())
+                                }
+                            }
+                            .foregroundStyle(.secondary)
+
+                            Button("Cancel Download") {
+                                modelManager.cancelDownload()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                    }
+                }
+
+                if let error = modelManager.downloadError {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
                     }
                 }
             }
-
-            if let error = modelManager.downloadError {
-                Section {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                }
-            }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     private func modelRow(_ model: WhisperModel) -> some View {
@@ -489,80 +495,82 @@ struct SettingsView: View {
     // MARK: - Language
 
     private var languageTab: some View {
-        Form {
-            if appState.selectedModel.isEnglishOnly {
-                Section {
-                    HStack {
-                        Image(systemName: "lock.fill")
-                            .foregroundStyle(.secondary)
-                        Text("Language is locked to English when using an English-only model.")
-                            .foregroundStyle(.secondary)
+        ScrollView {
+            Form {
+                if appState.selectedModel.isEnglishOnly {
+                    Section {
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundStyle(.secondary)
+                            Text("Language is locked to English when using an English-only model.")
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Switch to a multilingual model in the Models tab to enable language selection.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
-                    Text("Switch to a multilingual model in the Models tab to enable language selection.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            } else {
-                Section("Transcription Language") {
-                    Picker("Language", selection: $appState.selectedLanguageCode) {
-                        Label("Auto-detect", systemImage: "wand.and.stars")
-                            .tag("auto")
+                } else {
+                    Section("Transcription Language") {
+                        Picker("Language", selection: $appState.selectedLanguageCode) {
+                            Label("Auto-detect", systemImage: "wand.and.stars")
+                                .tag("auto")
 
-                        Divider()
+                            Divider()
 
-                        ForEach(WhisperEngine.commonLanguages, id: \.code) { lang in
-                            Text("\(WhisperEngine.languageFlag(for: lang.code)) \(lang.name)")
-                                .tag(lang.code)
+                            ForEach(WhisperEngine.commonLanguages, id: \.code) { lang in
+                                Text("\(WhisperEngine.languageFlag(for: lang.code)) \(lang.name)")
+                                    .tag(lang.code)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+
+                    Section {
+                        if appState.selectedLanguageCode == "auto" {
+                            Label("Whisper will automatically detect the spoken language.", systemImage: "sparkles")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            let name = WhisperEngine.languageDisplayName(for: appState.selectedLanguageCode)
+                            Label("Transcription will be optimized for \(name).", systemImage: "text.bubble")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .pickerStyle(.menu)
                 }
 
-                Section {
-                    if appState.selectedLanguageCode == "auto" {
-                        Label("Whisper will automatically detect the spoken language.", systemImage: "sparkles")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        let name = WhisperEngine.languageDisplayName(for: appState.selectedLanguageCode)
-                        Label("Transcription will be optimized for \(name).", systemImage: "text.bubble")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                if let lastLang = appState.detectedLanguage {
+                    Section("Last Detected Language") {
+                        HStack {
+                            Text(WhisperEngine.languageFlag(for: lastLang))
+                                .font(.title2)
+                            Text(WhisperEngine.languageDisplayName(for: lastLang))
+                                .font(.headline)
+                        }
                     }
                 }
             }
-
-            if let lastLang = appState.detectedLanguage {
-                Section("Last Detected Language") {
-                    HStack {
-                        Text(WhisperEngine.languageFlag(for: lastLang))
-                            .font(.title2)
-                        Text(WhisperEngine.languageDisplayName(for: lastLang))
-                            .font(.headline)
-                    }
-                }
-            }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 
     // MARK: - Audio
 
     private var audioTab: some View {
-        Form {
-            Section("Input Device") {
-                AudioDevicePicker()
-            }
+        ScrollView {
+            Form {
+                Section("Input Device") {
+                    AudioDevicePicker()
+                }
 
-            Section {
-                Text("Whispr records at 16 kHz mono for optimal transcription quality. The selected input device is used system-wide by Whispr.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Section {
+                    Text("Whispr records at 16 kHz mono for optimal transcription quality. The selected input device is used system-wide by Whispr.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .padding()
     }
 }
 
