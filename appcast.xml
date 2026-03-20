@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Whispr Updates</title>
+        <link>https://github.com/agentmurph/Whispr/releases</link>
+        <description>Most recent updates to Whispr</description>
+        <language>en</language>
+        <item>
+            <title>Version 1.0.0</title>
+            <sparkle:releaseNotesLink>https://github.com/agentmurph/Whispr/releases/tag/v1.0.0</sparkle:releaseNotesLink>
+            <pubDate>Thu, 19 Mar 2026 00:00:00 +0000</pubDate>
+            <enclosure
+                url="https://github.com/agentmurph/Whispr/releases/download/v1.0.0/Whispr-1.0.0.dmg"
+                sparkle:version="1.0.0"
+                sparkle:shortVersionString="1.0.0"
+                length="0"
+                type="application/octet-stream"
+                sparkle:edSignature="PLACEHOLDER_ED_SIGNATURE"
+            />
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+        </item>
+    </channel>
+</rss>
