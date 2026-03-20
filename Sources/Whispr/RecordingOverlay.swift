@@ -70,6 +70,11 @@ struct RecordingOverlayView: View {
             WaveformView(samples: appState.waveformSamples)
                 .frame(height: 40)
 
+            // Live streaming transcription preview
+            if appState.streamingEnabled && !appState.partialTranscription.isEmpty {
+                StreamingCaptionView(text: appState.partialTranscription)
+            }
+
             // Buttons
             HStack(spacing: 12) {
                 Button {
@@ -176,6 +181,30 @@ struct WaveformBar: View {
         if level > 0.8 { return .red }
         if level > 0.5 { return .orange }
         return .green
+    }
+}
+
+// MARK: - Streaming Caption View
+
+/// Subtitle/caption style view showing partial transcription during streaming mode.
+struct StreamingCaptionView: View {
+    var text: String
+
+    var body: some View {
+        ScrollView {
+            Text(text)
+                .font(.system(.body, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.85))
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity)
+        }
+        .frame(maxHeight: 60)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .animation(.easeInOut(duration: 0.3), value: text)
     }
 }
 

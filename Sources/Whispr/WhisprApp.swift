@@ -16,10 +16,12 @@ struct WhisprApp: App {
     @State private var whisperEngine = WhisperEngine()
     @State private var hotkeyManager = HotkeyManager()
     @State private var overlayController = OverlayController()
+    @State private var streamingTranscriber = StreamingTranscriber()
 
     @State private var elapsedTimer: Timer?
     @State private var levelCancellable: AnyCancellable?
     @State private var modelCancellable: AnyCancellable?
+    @State private var streamingCancellable: AnyCancellable?
     @State private var onboardingWindow: NSWindow?
     @State private var showSettings = false
 
@@ -147,6 +149,7 @@ struct WhisprApp: App {
             try audioEngine.start()
             appState.phase = .recording
             appState.elapsed = 0
+            appState.partialTranscription = ""
 
             // Start elapsed timer
             let start = Date()
@@ -154,6 +157,20 @@ struct WhisprApp: App {
                 Task { @MainActor in
                     self.appState.elapsed = Date().timeIntervalSince(start)
                 }
+            }
+
+            // Start streaming transcription if enabled
+            if appState.streamingEnabled {
+                loadStreamingModelIfNeeded()
+                streamingTranscriber.reset()
+                streamingTranscriber.start(
+                    audioEngine: audioEngine,
+                    interval: appState.streamingChunkInterval
+                )
+                // Forward partial text to appState
+                streamingCancellable = streamingTranscriber.$partialText
+                    .receive(on: DispatchQueue.main)
+                    .assign(to: \.partialTranscription, on: appState)
             }
 
             // Show overlay — wrap closures explicitly for MainActor safety
@@ -172,9 +189,40 @@ struct WhisprApp: App {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
 
+        // Stop streaming transcriber
+        let streamingPartial = streamingTranscriber.stop()
+        streamingCancellable = nil
+
         let buffer = audioEngine.stop()
-        appState.phase = .transcribing
         appState.audioLevel = 0
+
+        let isStreaming = appState.streamingEnabled
+        let draftAndFinal = appState.streamingDraftAndFinal
+        let outputSpeed = appState.streamingOutputSpeed
+
+        // In streaming mode without draft+final, use the partial text directly
+        if isStreaming && !draftAndFinal && !streamingPartial.isEmpty {
+            appState.phase = .idle
+
+            let processed = TextPostProcessor.process(streamingPartial, options: appState.textProcessingOptions)
+            let replaced = wordReplacementManager.apply(to: processed)
+
+            let text: String
+            if let snippetText = snippetManager.match(replaced) {
+                text = snippetText
+            } else {
+                text = replaced
+            }
+            appState.transcribedText = text
+
+            injectFinalText(text, outputSpeed: outputSpeed)
+            appState.partialTranscription = ""
+            overlayController.hide()
+            return
+        }
+
+        // Either non-streaming mode or draft+final mode — do full transcription
+        appState.phase = .transcribing
 
         Task { @MainActor in
             do {
@@ -209,23 +257,28 @@ struct WhisprApp: App {
                 }
                 appState.transcribedText = text
 
-                // Process voice commands if enabled, otherwise inject text directly
-                if appState.voiceCommandsEnabled {
-                    let commandResult = VoiceCommandProcessor.process(text)
-                    if !commandResult.actions.isEmpty {
-                        VoiceCommandProcessor.execute(commandResult.actions, preferClipboard: appState.useClipboardFallback)
+                // Use word-by-word injection in streaming mode
+                if isStreaming {
+                    injectFinalText(text, outputSpeed: outputSpeed)
+                } else {
+                    // Process voice commands if enabled, otherwise inject text directly
+                    if appState.voiceCommandsEnabled {
+                        let commandResult = VoiceCommandProcessor.process(text)
+                        if !commandResult.actions.isEmpty {
+                            VoiceCommandProcessor.execute(commandResult.actions, preferClipboard: appState.useClipboardFallback)
+                        } else {
+                            TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
+                        }
                     } else {
                         TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
                     }
-                } else {
-                    // Inject text (auto-detects secure fields and falls back to clipboard paste)
-                    TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
                 }
             } catch {
                 print("Transcription error: \(error)")
             }
 
             appState.phase = .idle
+            appState.partialTranscription = ""
 
             // Show detected language briefly before hiding overlay
             if appState.showLanguageIndicator {
@@ -238,13 +291,35 @@ struct WhisprApp: App {
         }
     }
 
+    /// Inject text with word-by-word output speed (or instant).
+    @MainActor
+    private func injectFinalText(_ text: String, outputSpeed: OutputSpeed) {
+        if appState.voiceCommandsEnabled {
+            let commandResult = VoiceCommandProcessor.process(text)
+            if !commandResult.actions.isEmpty {
+                VoiceCommandProcessor.execute(commandResult.actions, preferClipboard: appState.useClipboardFallback)
+                return
+            }
+        }
+
+        let delay = outputSpeed.wordDelayMicroseconds
+        if delay > 0 {
+            TextInjector.injectTextWordByWord(text, wordDelayMicroseconds: delay, preferClipboard: appState.useClipboardFallback)
+        } else {
+            TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
+        }
+    }
+
     @MainActor
     private func cancelRecording() {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
+        _ = streamingTranscriber.stop()
+        streamingCancellable = nil
         _ = audioEngine.stop()
         appState.phase = .idle
         appState.audioLevel = 0
+        appState.partialTranscription = ""
         overlayController.hide()
     }
 
@@ -254,6 +329,15 @@ struct WhisprApp: App {
         let url = modelManager.localURL(for: appState.selectedModel)
         guard modelManager.isDownloaded(appState.selectedModel) else { return }
         try? whisperEngine.loadModel(at: url)
+    }
+
+    /// Load the streaming model (tiny.en for low latency). Falls back to the selected model.
+    private func loadStreamingModelIfNeeded() {
+        // Prefer tiny.en for streaming (fastest)
+        let streamingModel: WhisperModel = modelManager.isDownloaded(.tinyEn) ? .tinyEn : appState.selectedModel
+        let url = modelManager.localURL(for: streamingModel)
+        guard modelManager.isDownloaded(streamingModel) else { return }
+        streamingTranscriber.loadModel(at: url)
     }
 
     // MARK: - Onboarding

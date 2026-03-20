@@ -58,6 +58,15 @@ final class AudioEngine: ObservableObject {
         return captured
     }
 
+    /// Returns a snapshot of the current audio buffer without clearing it.
+    /// Used by streaming transcription to read audio while still recording.
+    func currentBuffer() -> [Float] {
+        bufferLock.lock()
+        let snapshot = audioBuffer
+        bufferLock.unlock()
+        return snapshot
+    }
+
     // MARK: - Internals
 
     private func convert(

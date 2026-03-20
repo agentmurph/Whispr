@@ -4,6 +4,49 @@ import SwiftUI
 import ServiceManagement
 import SwiftWhisper
 
+/// Output speed for streaming word-by-word injection.
+enum OutputSpeed: String, CaseIterable, Identifiable {
+    case instant = "instant"
+    case natural = "natural"
+    case slow = "slow"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .instant: return "Instant"
+        case .natural: return "Natural"
+        case .slow: return "Slow"
+        }
+    }
+
+    /// Delay in microseconds between words.
+    var wordDelayMicroseconds: UInt32 {
+        switch self {
+        case .instant: return 0
+        case .natural: return 60_000   // 60ms
+        case .slow: return 150_000     // 150ms
+        }
+    }
+}
+
+/// Chunk interval options for streaming transcription.
+enum ChunkInterval: Double, CaseIterable, Identifiable {
+    case threeSeconds = 3.0
+    case fiveSeconds = 5.0
+    case eightSeconds = 8.0
+
+    var id: Double { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .threeSeconds: return "3 seconds"
+        case .fiveSeconds: return "5 seconds"
+        case .eightSeconds: return "8 seconds"
+        }
+    }
+}
+
 /// Central observable state for the entire app.
 @MainActor
 final class AppState: ObservableObject {
@@ -92,6 +135,21 @@ final class AppState: ObservableObject {
     // MARK: - Voice Commands
 
     @AppStorage("voiceCommands.enabled") var voiceCommandsEnabled: Bool = false
+
+    // MARK: - Streaming Transcription
+
+    @AppStorage("streaming.enabled") var streamingEnabled: Bool = false
+    @AppStorage("streaming.chunkInterval") var streamingChunkInterval: Double = 5.0
+    @AppStorage("streaming.outputSpeed") var streamingOutputSpeedRaw: String = OutputSpeed.instant.rawValue
+    @AppStorage("streaming.draftAndFinal") var streamingDraftAndFinal: Bool = false
+
+    /// Partial transcription text shown in the overlay during streaming.
+    @Published var partialTranscription: String = ""
+
+    var streamingOutputSpeed: OutputSpeed {
+        get { OutputSpeed(rawValue: streamingOutputSpeedRaw) ?? .instant }
+        set { streamingOutputSpeedRaw = newValue.rawValue }
+    }
 
     // MARK: - Onboarding
 

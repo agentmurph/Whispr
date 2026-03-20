@@ -14,6 +14,9 @@ struct SettingsView: View {
             generalTab
                 .tabItem { Label("General", systemImage: "gear") }
 
+            streamingTab
+                .tabItem { Label("Streaming", systemImage: "waveform.badge.mic") }
+
             textProcessingTab
                 .tabItem { Label("Text", systemImage: "textformat") }
 
@@ -203,6 +206,63 @@ struct SettingsView: View {
                 Text("When a per-app hotkey is set, it overrides the global hotkey while that app is focused. If no profile matches, the global hotkey (⌥Space) is used.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+
+    // MARK: - Streaming
+
+    private var streamingTab: some View {
+        Form {
+            Section("Real-Time Streaming") {
+                Toggle("Enable streaming transcription", isOn: $appState.streamingEnabled)
+                Text("Transcribe audio in chunks while you're still speaking. Shows live preview in the recording overlay.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if appState.streamingEnabled {
+                Section("Chunk Interval") {
+                    Picker("Transcribe every", selection: $appState.streamingChunkInterval) {
+                        ForEach(ChunkInterval.allCases) { interval in
+                            Text(interval.displayName).tag(interval.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Text("Shorter intervals give faster feedback but use more CPU.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Output Speed") {
+                    Picker("Word output speed", selection: Binding(
+                        get: { appState.streamingOutputSpeed },
+                        set: { appState.streamingOutputSpeed = $0 }
+                    )) {
+                        ForEach(OutputSpeed.allCases) { speed in
+                            Text(speed.displayName).tag(speed)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    Text("Controls how fast words are typed into the target app. \"Natural\" types word-by-word with slight delays.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Draft + Final Mode") {
+                    Toggle("Re-transcribe with full model after recording stops", isOn: $appState.streamingDraftAndFinal)
+                    Text("Uses the tiny.en model for fast streaming previews, then does a final pass with your selected model for higher accuracy. The final result replaces the draft.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if appState.streamingDraftAndFinal && !modelManager.isDownloaded(.tinyEn) {
+                        Label("Download the Tiny (English) model in the Models tab for best streaming performance.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
         }
         .formStyle(.grouped)

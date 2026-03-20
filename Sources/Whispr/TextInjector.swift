@@ -69,6 +69,29 @@ enum TextInjector {
         simulatePaste()
     }
 
+    /// Inject text word-by-word with configurable delay between words.
+    /// Used in streaming mode for natural-looking output.
+    static func injectTextWordByWord(_ text: String, wordDelayMicroseconds: UInt32, preferClipboard: Bool = false) {
+        guard wordDelayMicroseconds > 0 else {
+            // No delay — just inject normally
+            injectText(text, preferClipboard: preferClipboard)
+            return
+        }
+
+        let words = text.split(separator: " ", omittingEmptySubsequences: true)
+        for (index, word) in words.enumerated() {
+            let chunk = index == 0 ? String(word) : " " + String(word)
+            if preferClipboard || isSecureTextField() {
+                pasteTextWithRestore(chunk)
+            } else {
+                typeText(chunk)
+            }
+            if index < words.count - 1 {
+                usleep(wordDelayMicroseconds)
+            }
+        }
+    }
+
     // MARK: - Private
 
     /// Simulate Cmd+V keystroke.
