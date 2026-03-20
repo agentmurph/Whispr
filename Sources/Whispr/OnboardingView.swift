@@ -125,18 +125,22 @@ struct OnboardingView: View {
             Spacer()
 
             HStack {
-                Button("Open System Settings") {
-                    NSWorkspace.shared.open(
-                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-                    )
+                Button("Grant Access") {
+                    // Trigger the system prompt to add Whispr to Accessibility
+                    let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
+                    let _ = AXIsProcessTrustedWithOptions(options)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
                 Button("Continue") { step = .downloadModel }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     .controlSize(.large)
             }
+
+            Text("After granting access, you may need to restart Whispr.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
