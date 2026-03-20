@@ -55,7 +55,7 @@ cat > "$CONTENTS/Info.plist" << EOF
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
+    <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
@@ -71,6 +71,10 @@ ICON_PATH="Resources/AppIcon.icns"
 if [ -f "$ICON_PATH" ]; then
     cp "$ICON_PATH" "$RESOURCES/AppIcon.icns"
 fi
+
+# Ad-hoc sign the binary so Gatekeeper allows it
+echo "🔏 Ad-hoc signing..."
+codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || echo "⚠️  codesign not available, skipping (app may be blocked by Gatekeeper)"
 
 echo "💿 Creating DMG..."
 rm -rf "$DMG_DIR" "$OUTPUT_DMG"

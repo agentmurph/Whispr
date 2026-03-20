@@ -4,6 +4,31 @@ import SwiftUI
 import ServiceManagement
 import SwiftWhisper
 
+/// Trigger mode for the global hotkey.
+enum TriggerMode: String, CaseIterable, Identifiable {
+    case toggle = "toggle"
+    case holdToTalk = "holdToTalk"
+    case pushToToggle = "pushToToggle"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .toggle: return "Toggle"
+        case .holdToTalk: return "Hold to Talk"
+        case .pushToToggle: return "Push to Toggle"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .toggle: return "Press to start, press again to stop"
+        case .holdToTalk: return "Hold to record, release to transcribe"
+        case .pushToToggle: return "Same as Toggle with visual distinction"
+        }
+    }
+}
+
 /// Output speed for streaming word-by-word injection.
 enum OutputSpeed: String, CaseIterable, Identifiable {
     case instant = "instant"
