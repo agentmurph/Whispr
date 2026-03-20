@@ -182,7 +182,15 @@ struct WhisprApp: App {
                 }
 
                 let rawText = try await whisperEngine.transcribe(buffer)
-                let text = TextPostProcessor.process(rawText, options: appState.textProcessingOptions)
+                let processed = TextPostProcessor.process(rawText, options: appState.textProcessingOptions)
+
+                // Check for snippet match — if a trigger phrase matches, inject the snippet instead
+                let text: String
+                if let snippetText = snippetManager.match(processed) {
+                    text = snippetText
+                } else {
+                    text = processed
+                }
                 appState.transcribedText = text
 
                 // Inject text (auto-detects secure fields and falls back to clipboard paste)
