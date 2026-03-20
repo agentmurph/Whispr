@@ -182,8 +182,19 @@ struct WhisprApp: App {
                     loadModelIfNeeded()
                 }
 
+                // Configure language before transcription
+                let isMultilingual = appState.selectedModel.isMultilingual
+                whisperEngine.configureLanguage(appState.effectiveLanguage, isMultilingual: isMultilingual)
+
                 let engine = whisperEngine
-                let result = try await engine.transcribeWithTimestamps(buffer)
+                let result = try await engine.transcribeWithTimestamps(buffer, isMultilingual: isMultilingual)
+
+                // Update detected language state
+                appState.detectedLanguage = result.detectedLanguage
+                if result.detectedLanguage != nil {
+                    appState.showLanguageIndicator = true
+                }
+
                 let processed = TextPostProcessor.process(result.text, options: appState.textProcessingOptions, segmentGaps: result.segmentGaps)
 
                 // Apply custom word replacements
