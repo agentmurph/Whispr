@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject var modelManager: ModelManager
     @ObservedObject var hotkeyProfileManager: HotkeyProfileManager
     @ObservedObject var snippetManager: SnippetManager
+    @ObservedObject var wordReplacementManager: WordReplacementManager
 
     var body: some View {
         TabView {
@@ -18,6 +19,9 @@ struct SettingsView: View {
 
             hotkeyProfilesTab
                 .tabItem { Label("App Hotkeys", systemImage: "keyboard") }
+
+            WordReplacementView(replacementManager: wordReplacementManager)
+                .tabItem { Label("Replacements", systemImage: "arrow.left.arrow.right") }
 
             SnippetLibraryView(snippetManager: snippetManager)
                 .tabItem { Label("Snippets", systemImage: "text.badge.star") }

@@ -8,6 +8,7 @@ struct WhisprApp: App {
     @StateObject private var modelManager = ModelManager()
     @StateObject private var hotkeyProfileManager = HotkeyProfileManager()
     @StateObject private var snippetManager = SnippetManager()
+    @StateObject private var wordReplacementManager = WordReplacementManager()
 
     // Non-UI managers stored as let (created once)
     // Using nonisolated(unsafe) to avoid @State wrapping @MainActor classes
@@ -32,7 +33,7 @@ struct WhisprApp: App {
 
         // Settings window
         Window("Whispr Settings", id: "settings") {
-            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager)
+            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager, wordReplacementManager: wordReplacementManager)
         }
         .windowResizability(.contentSize)
     }
@@ -181,15 +182,19 @@ struct WhisprApp: App {
                     loadModelIfNeeded()
                 }
 
-                let result = try await whisperEngine.transcribeWithTimestamps(buffer)
+                let engine = whisperEngine
+                let result = try await engine.transcribeWithTimestamps(buffer)
                 let processed = TextPostProcessor.process(result.text, options: appState.textProcessingOptions, segmentGaps: result.segmentGaps)
+
+                // Apply custom word replacements
+                let replaced = wordReplacementManager.apply(to: processed)
 
                 // Check for snippet match — if a trigger phrase matches, inject the snippet instead
                 let text: String
-                if let snippetText = snippetManager.match(processed) {
+                if let snippetText = snippetManager.match(replaced) {
                     text = snippetText
                 } else {
-                    text = processed
+                    text = replaced
                 }
                 appState.transcribedText = text
 

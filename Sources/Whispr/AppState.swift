@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import ServiceManagement
+import SwiftWhisper
 
 /// Central observable state for the entire app.
 @MainActor
@@ -32,9 +33,33 @@ final class AppState: ObservableObject {
     /// Last transcription result.
     @Published var transcribedText: String = ""
 
+    /// Detected language after transcription (for multilingual models).
+    @Published var detectedLanguage: String?
+
+    /// Whether to show the language indicator flash.
+    @Published var showLanguageIndicator: Bool = false
+
     // MARK: - Model
 
     @Published var selectedModel: WhisperModel = .baseEn
+
+    // MARK: - Language
+
+    /// Selected language code for transcription.
+    /// "auto" means auto-detect (only for multilingual models).
+    /// For English-only models, this is ignored and forced to "en".
+    @AppStorage("selectedLanguageCode") var selectedLanguageCode: String = "auto"
+
+    /// The effective WhisperLanguage for transcription.
+    var effectiveLanguage: SwiftWhisper.WhisperLanguage {
+        if selectedModel.isEnglishOnly {
+            return .english
+        }
+        if selectedLanguageCode == "auto" {
+            return .auto
+        }
+        return SwiftWhisper.WhisperLanguage(rawValue: selectedLanguageCode) ?? .auto
+    }
 
     // MARK: - Settings
 
