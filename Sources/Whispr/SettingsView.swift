@@ -5,6 +5,7 @@ import ServiceManagement
 struct SettingsView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var modelManager: ModelManager
+    @ObservedObject var hotkeyProfileManager: HotkeyProfileManager
 
     var body: some View {
         TabView {
@@ -13,6 +14,9 @@ struct SettingsView: View {
 
             textProcessingTab
                 .tabItem { Label("Text", systemImage: "textformat") }
+
+            hotkeyProfilesTab
+                .tabItem { Label("App Hotkeys", systemImage: "keyboard") }
 
             modelTab
                 .tabItem { Label("Models", systemImage: "brain") }
@@ -69,6 +73,56 @@ struct SettingsView: View {
 
             Section {
                 Text("These transformations are applied to transcribed text before it's typed into the target app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+
+    // MARK: - Per-App Hotkey Profiles
+
+    private var hotkeyProfilesTab: some View {
+        Form {
+            Section("Per-App Hotkeys") {
+                if hotkeyProfileManager.profiles.isEmpty {
+                    Text("No app-specific hotkeys configured.\nThe global hotkey (⌥Space) is used everywhere.")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                } else {
+                    ForEach(hotkeyProfileManager.profiles) { profile in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(profile.appName)
+                                    .font(.headline)
+                                Text(profile.bundleIdentifier)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(profile.binding.displayString)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                            Button(role: .destructive) {
+                                hotkeyProfileManager.removeProfile(bundleID: profile.bundleIdentifier)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+            }
+
+            Section("Add App Profile") {
+                AddHotkeyProfileView(profileManager: hotkeyProfileManager)
+            }
+
+            Section {
+                Text("When a per-app hotkey is set, it overrides the global hotkey while that app is focused. If no profile matches, the global hotkey (⌥Space) is used.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -298,6 +352,136 @@ struct AudioDeviceInfo: Identifiable {
 
             return AudioDeviceInfo(id: deviceID, name: cfName as String)
         }
+    }
+}
+
+// MARK: - Add Hotkey Profile View
+
+struct AddHotkeyProfileView: View {
+    @ObservedObject var profileManager: HotkeyProfileManager
+    @State private var selectedApp: RunningAppInfo?
+    @State private var runningApps: [RunningAppInfo] = []
+    @State private var isRecordingHotkey = false
+    @State private var recordedBinding: HotkeyBinding?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Application", selection: $selectedApp) {
+                Text("Select an app…").tag(nil as RunningAppInfo?)
+                ForEach(runningApps, id: \.bundleID) { app in
+                    Text(app.name).tag(app as RunningAppInfo?)
+                }
+            }
+            .onAppear { refreshRunningApps() }
+
+            HStack {
+                Text("Hotkey:")
+                if let binding = recordedBinding {
+                    Text(binding.displayString)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Text("None")
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(isRecordingHotkey ? "Press a key…" : "Record Hotkey") {
+                    isRecordingHotkey = true
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .background(
+                HotkeyRecorderBackground(isActive: $isRecordingHotkey, onRecord: { binding in
+                    recordedBinding = binding
+                    isRecordingHotkey = false
+                })
+            )
+
+            Button("Add Profile") {
+                guard let app = selectedApp, let binding = recordedBinding else { return }
+                let profile = HotkeyProfile(
+                    bundleIdentifier: app.bundleID,
+                    appName: app.name,
+                    binding: binding
+                )
+                profileManager.addProfile(profile)
+                selectedApp = nil
+                recordedBinding = nil
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(selectedApp == nil || recordedBinding == nil)
+        }
+    }
+
+    private func refreshRunningApps() {
+        runningApps = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { app in
+                guard let name = app.localizedName,
+                      let bundleID = app.bundleIdentifier else { return nil }
+                return RunningAppInfo(name: name, bundleID: bundleID)
+            }
+            .sorted { $0.name < $1.name }
+    }
+}
+
+struct RunningAppInfo: Hashable {
+    let name: String
+    let bundleID: String
+}
+
+/// An invisible NSView-backed key recorder that captures the next key press.
+struct HotkeyRecorderBackground: NSViewRepresentable {
+    @Binding var isActive: Bool
+    var onRecord: (HotkeyBinding) -> Void
+
+    func makeNSView(context: Context) -> HotkeyRecorderNSView {
+        let view = HotkeyRecorderNSView()
+        view.onRecord = onRecord
+        return view
+    }
+
+    func updateNSView(_ nsView: HotkeyRecorderNSView, context: Context) {
+        nsView.onRecord = onRecord
+        if isActive {
+            nsView.startListening()
+        } else {
+            nsView.stopListening()
+        }
+    }
+}
+
+final class HotkeyRecorderNSView: NSView {
+    var onRecord: ((HotkeyBinding) -> Void)?
+    private var monitor: Any?
+
+    func startListening() {
+        stopListening()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let binding = HotkeyBinding(
+                keyCode: UInt32(event.keyCode),
+                modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue
+            )
+            self?.onRecord?(binding)
+            self?.stopListening()
+            return nil // consume the event
+        }
+    }
+
+    func stopListening() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        monitor = nil
+    }
+
+    deinit {
+        stopListening()
     }
 }
 
