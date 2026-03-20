@@ -8,6 +8,7 @@ struct SettingsView: View {
     @ObservedObject var hotkeyProfileManager: HotkeyProfileManager
     @ObservedObject var snippetManager: SnippetManager
     @ObservedObject var wordReplacementManager: WordReplacementManager
+    @ObservedObject var pluginManager: PluginManager
 
     var body: some View {
         TabView {
@@ -28,6 +29,9 @@ struct SettingsView: View {
 
             SnippetLibraryView(snippetManager: snippetManager)
                 .tabItem { Label("Snippets", systemImage: "text.badge.star") }
+
+            PluginSettingsView(pluginManager: pluginManager)
+                .tabItem { Label("Plugins", systemImage: "puzzlepiece.extension") }
 
             modelTab
                 .tabItem { Label("Models", systemImage: "brain") }

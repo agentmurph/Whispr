@@ -9,6 +9,7 @@ struct WhisprApp: App {
     @StateObject private var hotkeyProfileManager = HotkeyProfileManager()
     @StateObject private var snippetManager = SnippetManager()
     @StateObject private var wordReplacementManager = WordReplacementManager()
+    @StateObject private var pluginManager = PluginManager()
 
     // Non-UI managers stored as let (created once)
     // Using nonisolated(unsafe) to avoid @State wrapping @MainActor classes
@@ -35,7 +36,7 @@ struct WhisprApp: App {
 
         // Settings window
         Window("Whispr Settings", id: "settings") {
-            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager, wordReplacementManager: wordReplacementManager)
+            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager, wordReplacementManager: wordReplacementManager, pluginManager: pluginManager)
         }
         .windowResizability(.contentSize)
     }
@@ -133,6 +134,7 @@ struct WhisprApp: App {
 
     @MainActor
     private func toggle() {
+        pluginManager.notifyHotkeyPressed()
         switch appState.phase {
         case .idle:
             startRecording()
@@ -173,6 +175,9 @@ struct WhisprApp: App {
                     .assign(to: \.partialTranscription, on: appState)
             }
 
+            // Notify plugins of recording start
+            pluginManager.notifyRecordingStart()
+
             // Show overlay — wrap closures explicitly for MainActor safety
             overlayController.show(
                 appState: appState,
@@ -189,6 +194,9 @@ struct WhisprApp: App {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
 
+        // Notify plugins of recording stop
+        pluginManager.notifyRecordingStop()
+
         // Stop streaming transcriber
         let streamingPartial = streamingTranscriber.stop()
         streamingCancellable = nil
@@ -204,15 +212,17 @@ struct WhisprApp: App {
         if isStreaming && !draftAndFinal && !streamingPartial.isEmpty {
             appState.phase = .idle
 
-            let processed = TextPostProcessor.process(streamingPartial, options: appState.textProcessingOptions)
+            var processed = TextPostProcessor.process(streamingPartial, options: appState.textProcessingOptions)
+            processed = pluginManager.runTranscriptionPipeline(text: processed, language: appState.detectedLanguage)
             let replaced = wordReplacementManager.apply(to: processed)
 
-            let text: String
+            var text: String
             if let snippetText = snippetManager.match(replaced) {
                 text = snippetText
             } else {
                 text = replaced
             }
+            text = pluginManager.runBeforeInjectionPipeline(text: text)
             appState.transcribedText = text
 
             injectFinalText(text, outputSpeed: outputSpeed)
@@ -243,18 +253,24 @@ struct WhisprApp: App {
                     appState.showLanguageIndicator = true
                 }
 
-                let processed = TextPostProcessor.process(result.text, options: appState.textProcessingOptions, segmentGaps: result.segmentGaps)
+                var processed = TextPostProcessor.process(result.text, options: appState.textProcessingOptions, segmentGaps: result.segmentGaps)
+
+                // Run plugin transcription pipeline
+                processed = pluginManager.runTranscriptionPipeline(text: processed, language: result.detectedLanguage)
 
                 // Apply custom word replacements
                 let replaced = wordReplacementManager.apply(to: processed)
 
                 // Check for snippet match — if a trigger phrase matches, inject the snippet instead
-                let text: String
+                var text: String
                 if let snippetText = snippetManager.match(replaced) {
                     text = snippetText
                 } else {
                     text = replaced
                 }
+
+                // Run plugin before-injection pipeline
+                text = pluginManager.runBeforeInjectionPipeline(text: text)
                 appState.transcribedText = text
 
                 // Use word-by-word injection in streaming mode
@@ -329,6 +345,7 @@ struct WhisprApp: App {
         let url = modelManager.localURL(for: appState.selectedModel)
         guard modelManager.isDownloaded(appState.selectedModel) else { return }
         try? whisperEngine.loadModel(at: url)
+        pluginManager.notifyModelLoaded(model: appState.selectedModel.rawValue)
     }
 
     /// Load the streaming model (tiny.en for low latency). Falls back to the selected model.
