@@ -111,9 +111,19 @@ struct RecordingOverlayView: View {
             ProgressView()
                 .controlSize(.large)
 
-            Text("Transcribing…")
+            Text(appState.streamingEnabled && appState.streamingDraftAndFinal ? "Refining…" : "Transcribing…")
                 .font(.headline)
                 .foregroundStyle(.secondary)
+
+            // Show the draft text while refining
+            if appState.streamingEnabled && !appState.partialTranscription.isEmpty {
+                Text(appState.partialTranscription)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 8)
+            }
         }
         .padding(.vertical, 8)
     }
