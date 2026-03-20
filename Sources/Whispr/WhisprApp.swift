@@ -6,7 +6,8 @@ struct WhisprApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var modelManager = ModelManager()
 
-    // Non-UI managers (created once, stored as state)
+    // Non-UI managers stored as let (created once)
+    // Using nonisolated(unsafe) to avoid @State wrapping @MainActor classes
     @State private var audioEngine = AudioEngine()
     @State private var whisperEngine = WhisperEngine()
     @State private var hotkeyManager = HotkeyManager()
@@ -14,7 +15,7 @@ struct WhisprApp: App {
 
     @State private var elapsedTimer: Timer?
     @State private var levelCancellable: AnyCancellable?
-    @State private var showOnboarding = false
+    @State private var onboardingWindow: NSWindow?
     @State private var showSettings = false
 
     var body: some Scene {
@@ -84,10 +85,13 @@ struct WhisprApp: App {
 
     // MARK: - Setup
 
+    @MainActor
     private func setupOnAppear() {
-        // Register global hotkey
-        hotkeyManager.onToggle = { [self] in
-            Task { @MainActor in self.toggle() }
+        // Register global hotkey — ensure callback dispatches to MainActor
+        hotkeyManager.onToggle = {
+            Task { @MainActor in
+                self.toggle()
+            }
         }
         hotkeyManager.register()
 
@@ -107,6 +111,7 @@ struct WhisprApp: App {
 
     // MARK: - Toggle (core flow)
 
+    @MainActor
     private func toggle() {
         switch appState.phase {
         case .idle:
@@ -118,6 +123,7 @@ struct WhisprApp: App {
         }
     }
 
+    @MainActor
     private func startRecording() {
         do {
             try audioEngine.start()
@@ -128,21 +134,22 @@ struct WhisprApp: App {
             let start = Date()
             elapsedTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 Task { @MainActor in
-                    appState.elapsed = Date().timeIntervalSince(start)
+                    self.appState.elapsed = Date().timeIntervalSince(start)
                 }
             }
 
-            // Show overlay
+            // Show overlay — wrap closures explicitly for MainActor safety
             overlayController.show(
                 appState: appState,
-                onStop: { stopAndTranscribe() },
-                onCancel: { cancelRecording() }
+                onStop: { @MainActor in self.stopAndTranscribe() },
+                onCancel: { @MainActor in self.cancelRecording() }
             )
         } catch {
             print("Failed to start audio: \(error)")
         }
     }
 
+    @MainActor
     private func stopAndTranscribe() {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
@@ -175,6 +182,7 @@ struct WhisprApp: App {
         }
     }
 
+    @MainActor
     private func cancelRecording() {
         elapsedTimer?.invalidate()
         elapsedTimer = nil
@@ -194,11 +202,15 @@ struct WhisprApp: App {
 
     // MARK: - Onboarding
 
+    @MainActor
     private func showOnboardingWindow() {
         let onboardingView = OnboardingView(
             appState: appState,
             modelManager: modelManager,
-            onComplete: { /* window will close naturally */ }
+            onComplete: { @MainActor in
+                self.onboardingWindow?.close()
+                self.onboardingWindow = nil
+            }
         )
 
         let window = NSWindow(
@@ -212,5 +224,6 @@ struct WhisprApp: App {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        onboardingWindow = window
     }
 }

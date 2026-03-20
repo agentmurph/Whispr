@@ -1,10 +1,11 @@
 import SwiftUI
 import AVFoundation
 
+@MainActor
 struct OnboardingView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var modelManager: ModelManager
-    var onComplete: () -> Void
+    var onComplete: @MainActor () -> Void
 
     @State private var step: OnboardingStep = .welcome
     @State private var micGranted = false
@@ -81,7 +82,7 @@ struct OnboardingView: View {
 
             Button("Grant Microphone Access") {
                 AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         micGranted = granted
                         step = .accessibility
                     }

@@ -9,12 +9,16 @@ final class HotkeyManager {
     private var hotKey: HotKey?
 
     /// Called each time the hotkey is pressed (toggle).
-    var onToggle: (() -> Void)?
+    /// Must be a @MainActor closure since it will be dispatched to MainActor.
+    var onToggle: (@MainActor () -> Void)?
 
     func register() {
         hotKey = HotKey(key: .space, modifiers: [.option])
         hotKey?.keyDownHandler = { [weak self] in
-            self?.onToggle?()
+            // HotKey fires on whatever thread — dispatch to MainActor
+            Task { @MainActor in
+                self?.onToggle?()
+            }
         }
     }
 

@@ -28,10 +28,11 @@ final class OverlayPanel: NSPanel {
 
 // MARK: - SwiftUI Overlay View
 
+@MainActor
 struct RecordingOverlayView: View {
     @ObservedObject var appState: AppState
-    var onStop: () -> Void
-    var onCancel: () -> Void
+    var onStop: @MainActor () -> Void
+    var onCancel: @MainActor () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -69,14 +70,18 @@ struct RecordingOverlayView: View {
 
             // Buttons
             HStack(spacing: 12) {
-                Button(action: onCancel) {
+                Button {
+                    onCancel()
+                } label: {
                     Label("Cancel", systemImage: "xmark")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Button(action: onStop) {
+                Button {
+                    onStop()
+                } label: {
                     Label("Stop", systemImage: "stop.fill")
                         .frame(maxWidth: .infinity)
                 }
@@ -153,7 +158,7 @@ final class OverlayController {
 
     private var panel: OverlayPanel?
 
-    func show(appState: AppState, onStop: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    func show(appState: AppState, onStop: @escaping @MainActor () -> Void, onCancel: @escaping @MainActor () -> Void) {
         let view = RecordingOverlayView(appState: appState, onStop: onStop, onCancel: onCancel)
 
         let hostingView = NSHostingView(rootView: view)
