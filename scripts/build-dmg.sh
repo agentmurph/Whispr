@@ -6,7 +6,8 @@ set -euo pipefail
 
 APP_NAME="Whispr"
 BUNDLE_ID="com.whispr.app"
-VERSION="${1:-1.0.0}"
+# Auto-detect version from latest git tag, or use argument
+VERSION="${1:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo '1.0.0')}"
 BUILD_DIR=".build/release-app"
 DMG_DIR=".build/dmg-staging"
 OUTPUT_DMG=".build/${APP_NAME}-${VERSION}.dmg"
