@@ -97,10 +97,15 @@ struct WhisprApp: App {
         }
         hotkeyManager.register()
 
-        // Forward audio level to app state
+        // Forward audio level and waveform to app state
         levelCancellable = audioEngine.$level
             .receive(on: DispatchQueue.main)
             .assign(to: \.audioLevel, on: appState)
+
+        // Forward waveform samples
+        audioEngine.$waveformSamples
+            .receive(on: DispatchQueue.main)
+            .assign(to: &appState.$waveformSamples)
 
         // Load selected model if available
         loadModelIfNeeded()

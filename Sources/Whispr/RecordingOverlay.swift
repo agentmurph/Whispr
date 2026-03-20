@@ -64,9 +64,9 @@ struct RecordingOverlayView: View {
                     .foregroundStyle(.primary)
             }
 
-            // Volume meter
-            VolumeMeter(level: appState.audioLevel)
-                .frame(height: 8)
+            // Waveform visualization
+            WaveformView(samples: appState.waveformSamples)
+                .frame(height: 40)
 
             // Buttons
             HStack(spacing: 12) {
@@ -124,23 +124,33 @@ struct RecordingOverlayView: View {
     }
 }
 
-// MARK: - Volume Meter
+// MARK: - Waveform Visualization
 
-struct VolumeMeter: View {
-    var level: Float
+struct WaveformView: View {
+    var samples: [Float]
 
     var body: some View {
         GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(barColor)
-                    .frame(width: geo.size.width * CGFloat(level))
-                    .animation(.easeOut(duration: 0.05), value: level)
+            HStack(alignment: .center, spacing: 2) {
+                ForEach(0..<samples.count, id: \.self) { index in
+                    WaveformBar(level: CGFloat(samples[index]), maxHeight: geo.size.height)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+struct WaveformBar: View {
+    var level: CGFloat
+    var maxHeight: CGFloat
+
+    var body: some View {
+        let barHeight = max(2, level * maxHeight)
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(barColor)
+            .frame(width: 4, height: barHeight)
+            .animation(.easeOut(duration: 0.08), value: level)
     }
 
     private var barColor: Color {

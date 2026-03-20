@@ -11,6 +11,10 @@ final class AudioEngine: ObservableObject {
     /// Published RMS audio level (0‑1). Observed by the overlay volume meter.
     @Published var level: Float = 0
 
+    /// Recent RMS samples for waveform visualization (ring buffer of last N values).
+    @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
+    private var waveformIndex: Int = 0
+
     // MARK: - Start / Stop
 
     func start() throws {
@@ -95,7 +99,11 @@ final class AudioEngine: ObservableObject {
         let clamped = min(max(rms * 5, 0), 1) // amplify a bit, clamp 0‑1
 
         DispatchQueue.main.async { [weak self] in
-            self?.level = clamped
+            guard let self else { return }
+            self.level = clamped
+            // Append to waveform ring buffer
+            self.waveformSamples[self.waveformIndex % self.waveformSamples.count] = clamped
+            self.waveformIndex += 1
         }
     }
 }

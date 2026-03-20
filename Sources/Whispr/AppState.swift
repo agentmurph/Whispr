@@ -23,6 +23,9 @@ final class AppState: ObservableObject {
     /// 0‑1 RMS audio level published by AudioEngine.
     @Published var audioLevel: Float = 0
 
+    /// Recent waveform samples for visualization (ring buffer from AudioEngine).
+    @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
+
     /// Seconds elapsed since recording started.
     @Published var elapsed: TimeInterval = 0
 
