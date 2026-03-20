@@ -7,8 +7,16 @@ enum TextInjector {
     /// Smart injection: tries keystrokes first, falls back to clipboard paste if needed.
     /// When `preferClipboard` is true, always uses clipboard paste.
     static func injectText(_ text: String, preferClipboard: Bool = false) {
+        // Always copy to clipboard first as a safety net
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+
         if preferClipboard {
             pasteTextWithRestore(text)
+        } else if !AXIsProcessTrusted() {
+            // No accessibility — clipboard only, notify user
+            showNotification(title: "Whispr", body: "Text copied to clipboard (⌘V to paste). Grant Accessibility permission for auto-typing.")
         } else {
             // Try keystroke injection; if the focused element is a secure field, fall back
             if isSecureTextField() {
@@ -17,6 +25,15 @@ enum TextInjector {
                 typeText(text)
             }
         }
+    }
+
+    /// Show a macOS notification
+    private static func showNotification(title: String, body: String) {
+        let notification = NSUserNotification()
+        notification.title = title
+        notification.informativeText = body
+        notification.soundName = NSUserNotificationDefaultSoundName
+        NSUserNotificationCenter.default.deliver(notification)
     }
 
     /// Primary method: simulate keystrokes via CGEvent for each character.

@@ -47,17 +47,106 @@ struct SettingsView: View {
 
     // MARK: - General
 
+    @State private var isRecordingGlobalHotkey = false
+    @State private var globalHotkeyBinding: HotkeyBinding?
+
     private var generalTab: some View {
         Form {
-            Section("Hotkey") {
-                LabeledContent("Toggle Recording") {
-                    Text("⌥ Space")
+            // MARK: Permissions Status
+            Section("Permissions") {
+                HStack {
+                    Image(systemName: "mic.fill")
+                        .foregroundStyle(micPermissionGranted ? .green : .red)
+                    Text("Microphone")
+                    Spacer()
+                    if micPermissionGranted {
+                        Label("Granted", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    } else {
+                        Button("Grant") {
+                            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+
+                HStack {
+                    Image(systemName: "hand.raised.fill")
+                        .foregroundStyle(AXIsProcessTrusted() ? .green : .red)
+                    Text("Accessibility")
+                    Spacer()
+                    if AXIsProcessTrusted() {
+                        Label("Granted", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    } else {
+                        Button("Grant Access") {
+                            let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary
+                            let _ = AXIsProcessTrustedWithOptions(options)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+
+                if !AXIsProcessTrusted() {
+                    Text("Without Accessibility, Whispr can only copy text to clipboard (⌘V to paste). Grant access for auto-typing.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            // MARK: Global Hotkey
+            Section("Global Hotkey") {
+                HStack {
+                    Text("Toggle Recording")
+                    Spacer()
+                    Text(globalHotkeyBinding?.displayString ?? appState.globalHotkeyDisplay)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                 }
+
+                HStack {
+                    Picker("Trigger Mode", selection: $appState.triggerModeRaw) {
+                        Text("Toggle (press to start/stop)").tag("toggle")
+                        Text("Hold to Talk (hold to record)").tag("hold")
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                HStack {
+                    Button(isRecordingGlobalHotkey ? "Press any key combo…" : "Change Hotkey") {
+                        isRecordingGlobalHotkey = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    if globalHotkeyBinding != nil {
+                        Button("Reset to ⌥ Space") {
+                            globalHotkeyBinding = nil
+                            appState.globalHotkeyKeyCode = 49 // space
+                            appState.globalHotkeyModifiers = Int(NSEvent.ModifierFlags.option.rawValue)
+                            appState.globalHotkeyDisplay = "⌥ Space"
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                .background(
+                    HotkeyRecorderBackground(isActive: $isRecordingGlobalHotkey, onRecord: { binding in
+                        globalHotkeyBinding = binding
+                        appState.globalHotkeyKeyCode = Int(binding.keyCode)
+                        appState.globalHotkeyModifiers = Int(binding.modifiers)
+                        appState.globalHotkeyDisplay = binding.displayString
+                        isRecordingGlobalHotkey = false
+                    })
+                )
             }
 
+            // MARK: Startup
             Section("Startup") {
                 Toggle("Launch at login", isOn: Binding(
                     get: { appState.launchAtLogin },
@@ -68,15 +157,20 @@ struct SettingsView: View {
                 ))
             }
 
+            // MARK: Text Injection
             Section("Text Injection") {
-                Toggle("Use clipboard paste (⌘V) instead of keystrokes", isOn: $appState.useClipboardFallback)
-                Text("Enable this if text isn't appearing in some apps (e.g., secure text fields).")
+                Toggle("Always use clipboard paste (⌘V)", isOn: $appState.useClipboardFallback)
+                Text("Enable this if text isn't appearing in apps. Text is always copied to clipboard as a backup regardless of this setting.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private var micPermissionGranted: Bool {
+        AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     }
 
     // MARK: - Text Processing

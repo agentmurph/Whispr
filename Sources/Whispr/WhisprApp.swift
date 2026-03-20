@@ -291,6 +291,11 @@ struct WhisprApp: App {
                 }
             } catch {
                 print("Transcription error: \(error)")
+                // Always copy error to clipboard so user knows something happened
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString("Whispr error: \(error.localizedDescription)", forType: .string)
+                appState.transcribedText = "Error: \(error.localizedDescription)"
             }
 
             appState.phase = .idle

@@ -180,6 +180,12 @@ final class AppState: ObservableObject {
 
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
 
+    // Global hotkey settings (stored as Int for AppStorage compatibility)
+    @AppStorage("globalHotkeyKeyCode") var globalHotkeyKeyCode: Int = 49 // space
+    @AppStorage("globalHotkeyModifiers") var globalHotkeyModifiers: Int = Int(NSEvent.ModifierFlags.option.rawValue)
+    @AppStorage("globalHotkeyDisplay") var globalHotkeyDisplay: String = "⌥ Space"
+    @AppStorage("triggerModeRaw") var triggerModeRaw: String = "toggle"
+
     // MARK: - Init
 
     init() {
