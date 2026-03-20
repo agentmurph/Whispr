@@ -226,6 +226,14 @@ struct WhisprApp: App {
             }
 
             appState.phase = .idle
+
+            // Show detected language briefly before hiding overlay
+            if appState.showLanguageIndicator {
+                try? await Task.sleep(nanoseconds: 1_200_000_000) // 1.2 seconds
+                appState.showLanguageIndicator = false
+                appState.detectedLanguage = nil
+            }
+
             overlayController.hide()
         }
     }

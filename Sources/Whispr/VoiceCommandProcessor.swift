@@ -7,8 +7,6 @@ enum VoiceCommandProcessor {
 
     /// Result of processing text for voice commands.
     struct Result {
-        /// The remaining text after extracting voice commands (may be empty).
-        let text: String
         /// Ordered list of actions to perform (text insertions and key commands).
         let actions: [Action]
     }
@@ -56,95 +54,69 @@ enum VoiceCommandProcessor {
     ]
 
     /// Process transcription text, extracting voice commands and returning actions.
-    /// The text between commands becomes insertText actions.
     static func process(_ text: String) -> Result {
-        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalized.isEmpty else {
-            return Result(text: "", actions: [])
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return Result(actions: [])
         }
 
         var actions: [Action] = []
-        var remaining = normalized.lowercased()
-        var originalRemaining = normalized
-        var resultText = ""
+        var pendingText = ""
+        let lower = trimmed.lowercased()
+        var pos = lower.startIndex
 
-        while !remaining.isEmpty {
+        while pos < lower.endIndex {
             var matched = false
 
             for (pattern, action) in commands {
-                // Check if remaining starts with this command (with word boundary)
-                if remaining.hasPrefix(pattern) {
-                    let afterCommand = remaining.dropFirst(pattern.count)
-                    // Ensure word boundary: next char must be whitespace, punctuation, or end
-                    let isWordBoundary = afterCommand.isEmpty ||
-                        afterCommand.first!.isWhitespace ||
-                        afterCommand.first!.isPunctuation
+                let remaining = lower[pos...]
+                guard remaining.hasPrefix(pattern) else { continue }
 
-                    if isWordBoundary {
-                        // Flush any accumulated text before this command
-                        let textBefore = String(originalRemaining.prefix(originalRemaining.count - remaining.count))
-                        let pendingText = textBefore.isEmpty ? "" : resultText
-                        if !pendingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            actions.append(.insertText(pendingText.trimmingCharacters(in: .whitespacesAndNewlines)))
-                            resultText = ""
-                        }
-
-                        actions.append(action)
-
-                        // Advance past the command and any trailing whitespace
-                        remaining = String(afterCommand).trimmingCharacters(in: .init(charactersIn: " "))
-                        let charsConsumed = normalized.count - remaining.count -
-                            (normalized.count - originalRemaining.count)
-                        originalRemaining = String(originalRemaining.dropFirst(
-                            min(charsConsumed + (originalRemaining.count - remaining.count - (originalRemaining.count - pattern.count)),
-                                originalRemaining.count)
-                        ))
-                        // Simpler: just rebuild from remaining length
-                        let offset = normalized.count - remaining.count
-                        if offset <= normalized.count {
-                            let idx = normalized.index(normalized.startIndex, offsetBy: offset, limitedBy: normalized.endIndex) ?? normalized.endIndex
-                            originalRemaining = String(normalized[idx...])
-                        } else {
-                            originalRemaining = ""
-                        }
-
-                        matched = true
-                        break
-                    }
+                let afterEnd = lower.index(pos, offsetBy: pattern.count, limitedBy: lower.endIndex) ?? lower.endIndex
+                // Check word boundary
+                if afterEnd < lower.endIndex {
+                    let nextChar = lower[afterEnd]
+                    guard nextChar == " " || nextChar.isPunctuation else { continue }
                 }
+                // Check start boundary
+                if pos > lower.startIndex {
+                    let prevChar = lower[lower.index(before: pos)]
+                    guard prevChar == " " else { continue }
+                }
+
+                // Flush pending text
+                if !pendingText.isEmpty {
+                    actions.append(.insertText(pendingText.trimmingCharacters(in: .whitespaces)))
+                    pendingText = ""
+                }
+
+                actions.append(action)
+                pos = afterEnd
+                // Skip trailing space
+                if pos < lower.endIndex && lower[pos] == " " {
+                    pos = lower.index(after: pos)
+                }
+                matched = true
+                break
             }
 
             if !matched {
-                // No command matched at current position — consume one word
-                if let spaceIdx = remaining.firstIndex(of: " ") {
-                    let word = String(remaining[remaining.startIndex..<spaceIdx])
-                    let origWord = String(originalRemaining.prefix(word.count))
-                    resultText += (resultText.isEmpty ? "" : " ") + origWord
-                    remaining = String(remaining[remaining.index(after: spaceIdx)...])
-                    originalRemaining = String(originalRemaining.dropFirst(word.count + 1))
-                } else {
-                    // Last word, no more spaces
-                    resultText += (resultText.isEmpty ? "" : " ") + originalRemaining
-                    remaining = ""
-                    originalRemaining = ""
-                }
+                // Consume character from original text (preserve case)
+                let origIdx = trimmed.index(trimmed.startIndex, offsetBy: lower.distance(from: lower.startIndex, to: pos))
+                pendingText.append(trimmed[origIdx])
+                pos = lower.index(after: pos)
             }
         }
 
-        // Flush any remaining text
-        if !resultText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            actions.append(.insertText(resultText.trimmingCharacters(in: .whitespacesAndNewlines)))
+        // Flush remaining text
+        if !pendingText.isEmpty {
+            let cleaned = pendingText.trimmingCharacters(in: .whitespaces)
+            if !cleaned.isEmpty {
+                actions.append(.insertText(cleaned))
+            }
         }
 
-        // Build final text (just the text parts, for display)
-        let finalText = actions.compactMap { action -> String? in
-            if case .insertText(let t) = action { return t }
-            if case .insertPunctuation(let p) = action { return p }
-            if case .insertNewline(let count) = action { return String(repeating: "\n", count: count) }
-            return nil
-        }.joined()
-
-        return Result(text: finalText, actions: actions)
+        return Result(actions: actions)
     }
 
     /// Execute a list of voice command actions.
@@ -153,7 +125,6 @@ enum VoiceCommandProcessor {
             switch action {
             case .insertText(let text):
                 TextInjector.injectText(text, preferClipboard: preferClipboard)
-                // Small delay between actions
                 usleep(50_000) // 50ms
 
             case .insertPunctuation(let punct):

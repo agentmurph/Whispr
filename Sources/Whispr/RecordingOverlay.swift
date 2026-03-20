@@ -36,7 +36,9 @@ struct RecordingOverlayView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            if appState.isRecording {
+            if appState.showLanguageIndicator, let lang = appState.detectedLanguage {
+                languageFlashContent(lang)
+            } else if appState.isRecording {
                 recordingContent
             } else if appState.isTranscribing {
                 transcribingContent
@@ -109,6 +111,23 @@ struct RecordingOverlayView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 8)
+    }
+
+    // MARK: - Language Flash
+
+    private func languageFlashContent(_ langCode: String) -> some View {
+        VStack(spacing: 10) {
+            Text(WhisperEngine.languageFlag(for: langCode))
+                .font(.system(size: 36))
+            Text(WhisperEngine.languageDisplayName(for: langCode))
+                .font(.headline)
+                .foregroundStyle(.primary)
+            Text("Detected language")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .transition(.opacity)
     }
 
     // MARK: - Helpers
