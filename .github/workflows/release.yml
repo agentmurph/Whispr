@@ -1,0 +1,68 @@
+name: Semantic Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Determine next version
+        id: version
+        run: |
+          chmod +x scripts/semantic-release.sh
+          source scripts/semantic-release.sh
+          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "current_version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}" >> "$GITHUB_OUTPUT"
+          echo "release_notes<<RELEASE_NOTES_EOF" >> "$GITHUB_OUTPUT"
+          echo "${RELEASE_NOTES}" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_NOTES_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        if: steps.version.outputs.bump != 'none'
+        run: swift build -c release
+
+      - name: Build DMG
+        if: steps.version.outputs.bump != 'none'
+        run: bash scripts/build-dmg.sh ${{ steps.version.outputs.new_version }}
+
+      - name: Update docs download link
+        if: steps.version.outputs.bump != 'none'
+        run: |
+          VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i '' "s|/releases/download/v[0-9]*\.[0-9]*\.[0-9]*/Whispr-[0-9]*\.[0-9]*\.[0-9]*\.dmg|/releases/download/v${VERSION}/Whispr-${VERSION}.dmg|g" docs/index.html
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --cached --quiet || git commit -m "docs: update download link to v${VERSION}"
+          git push
+
+      - name: Create tag and GitHub Release
+        if: steps.version.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.new_version }}"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes "${{ steps.version.outputs.release_notes }}" \
+            ".build/Whispr-${VERSION}.dmg#Whispr-${VERSION}.dmg"
