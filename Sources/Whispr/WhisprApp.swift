@@ -25,6 +25,7 @@ struct WhisprApp: App {
     @State private var streamingCancellable: AnyCancellable?
     @State private var onboardingWindow: NSWindow?
     @State private var showSettings = false
+    @State private var settingsWindow: NSWindow?
 
     var body: some Scene {
         // Menu bar app
@@ -33,12 +34,6 @@ struct WhisprApp: App {
         } label: {
             menuBarIcon
         }
-
-        // Settings window
-        Window("Whispr Settings", id: "settings") {
-            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager, wordReplacementManager: wordReplacementManager, pluginManager: pluginManager)
-        }
-        .windowResizability(.contentSize)
     }
 
     // MARK: - Menu Bar Icon
@@ -81,9 +76,7 @@ struct WhisprApp: App {
             }
 
             Button("Settings…") {
-                showSettings = true
-                // Open the settings window via environment
-                NSApp.activate(ignoringOtherApps: true)
+                openSettingsWindow()
             }
 
             Divider()
@@ -365,6 +358,36 @@ struct WhisprApp: App {
     // MARK: - Onboarding
 
     @MainActor
+    private func openSettingsWindow() {
+        if let existing = settingsWindow, existing.isVisible {
+            existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let settingsView = SettingsView(
+            appState: appState,
+            modelManager: modelManager,
+            hotkeyProfileManager: hotkeyProfileManager,
+            snippetManager: snippetManager,
+            wordReplacementManager: wordReplacementManager,
+            pluginManager: pluginManager
+        )
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 550, height: 480),
+            styleMask: [.titled, .closable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Whispr Settings"
+        window.contentView = NSHostingView(rootView: settingsView)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow = window
+    }
+
     private func showOnboardingWindow() {
         let onboardingView = OnboardingView(
             appState: appState,
