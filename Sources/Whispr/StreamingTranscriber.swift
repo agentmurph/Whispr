@@ -33,6 +33,9 @@ final class StreamingTranscriber: ObservableObject {
 
     var isLoaded: Bool { whisper != nil }
 
+    /// Reference to the audio engine for pulling samples during streaming.
+    private weak var activeAudioEngine: AudioEngine?
+
     /// Start periodic chunk transcription.
     /// - Parameters:
     ///   - audioEngine: The running audio engine to pull samples from.
@@ -43,11 +46,13 @@ final class StreamingTranscriber: ObservableObject {
         partialText = ""
         accumulatedSegments = []
         lastTranscribedSampleCount = 0
+        activeAudioEngine = audioEngine
 
         chunkTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in
-                await self.transcribeChunk(from: audioEngine)
+                guard let engine = self.activeAudioEngine else { return }
+                await self.transcribeChunk(from: engine)
             }
         }
     }
@@ -57,6 +62,7 @@ final class StreamingTranscriber: ObservableObject {
         chunkTimer?.invalidate()
         chunkTimer = nil
         isRunning = false
+        activeAudioEngine = nil
         let result = partialText
         return result
     }

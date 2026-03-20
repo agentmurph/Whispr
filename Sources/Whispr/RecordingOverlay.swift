@@ -219,16 +219,17 @@ final class OverlayController {
     func show(appState: AppState, onStop: @escaping @MainActor () -> Void, onCancel: @escaping @MainActor () -> Void) {
         let view = RecordingOverlayView(appState: appState, onStop: onStop, onCancel: onCancel)
 
+        let panelHeight: CGFloat = appState.streamingEnabled ? 300 : 200
         let hostingView = NSHostingView(rootView: view)
-        hostingView.frame = NSRect(x: 0, y: 0, width: 280, height: 200)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 280, height: panelHeight)
 
         // Center on main screen
         let screenFrame = NSScreen.main?.visibleFrame ?? .zero
         let panelRect = NSRect(
             x: screenFrame.midX - 140,
-            y: screenFrame.midY - 100,
+            y: screenFrame.midY - panelHeight / 2,
             width: 280,
-            height: 200
+            height: panelHeight
         )
 
         let p = OverlayPanel(contentRect: panelRect)
