@@ -177,12 +177,8 @@ struct WhisprApp: App {
                 let text = try await whisperEngine.transcribe(buffer)
                 appState.transcribedText = text
 
-                // Inject text
-                if appState.useClipboardFallback {
-                    TextInjector.pasteText(text)
-                } else {
-                    TextInjector.typeText(text)
-                }
+                // Inject text (auto-detects secure fields and falls back to clipboard paste)
+                TextInjector.injectText(text, preferClipboard: appState.useClipboardFallback)
             } catch {
                 print("Transcription error: \(error)")
             }
