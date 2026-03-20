@@ -13,6 +13,10 @@ struct SnippetLibraryView: View {
     @State private var alertMessage: String?
     @State private var showingResetConfirm = false
 
+    private var exportData: Data {
+        (try? snippetManager.exportJSON()) ?? Data()
+    }
+
     var body: some View {
         Form {
             Section("Snippets") {
@@ -76,7 +80,7 @@ struct SnippetLibraryView: View {
         }
         .fileExporter(
             isPresented: $showingExportPicker,
-            document: SnippetJSONDocument(snippetManager: snippetManager),
+            document: SnippetJSONDocument(data: exportData),
             contentType: .json,
             defaultFilename: "whispr-snippets.json"
         ) { _ in }
@@ -236,8 +240,8 @@ struct SnippetJSONDocument: FileDocument {
 
     let jsonData: Data
 
-    init(snippetManager: SnippetManager) {
-        self.jsonData = (try? snippetManager.exportJSON()) ?? Data()
+    init(data: Data) {
+        self.jsonData = data
     }
 
     init(configuration: ReadConfiguration) throws {

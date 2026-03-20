@@ -7,6 +7,7 @@ struct WhisprApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var modelManager = ModelManager()
     @StateObject private var hotkeyProfileManager = HotkeyProfileManager()
+    @StateObject private var snippetManager = SnippetManager()
 
     // Non-UI managers stored as let (created once)
     // Using nonisolated(unsafe) to avoid @State wrapping @MainActor classes
@@ -31,7 +32,7 @@ struct WhisprApp: App {
 
         // Settings window
         Window("Whispr Settings", id: "settings") {
-            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager)
+            SettingsView(appState: appState, modelManager: modelManager, hotkeyProfileManager: hotkeyProfileManager, snippetManager: snippetManager)
         }
         .windowResizability(.contentSize)
     }

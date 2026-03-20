@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var modelManager: ModelManager
     @ObservedObject var hotkeyProfileManager: HotkeyProfileManager
+    @ObservedObject var snippetManager: SnippetManager
 
     var body: some View {
         TabView {
@@ -17,6 +18,9 @@ struct SettingsView: View {
 
             hotkeyProfilesTab
                 .tabItem { Label("App Hotkeys", systemImage: "keyboard") }
+
+            SnippetLibraryView(snippetManager: snippetManager)
+                .tabItem { Label("Snippets", systemImage: "text.badge.star") }
 
             modelTab
                 .tabItem { Label("Models", systemImage: "brain") }
