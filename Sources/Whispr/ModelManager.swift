@@ -44,6 +44,14 @@ enum WhisperModel: String, CaseIterable, Identifiable {
     var downloadURL: URL {
         URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(fileName)")!
     }
+
+    /// CoreML encoder model zip URL (for Apple Silicon acceleration).
+    var coreMLDownloadURL: URL {
+        URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(rawValue)-encoder.mlmodelc.zip")!
+    }
+
+    /// Expected directory name for the CoreML encoder model.
+    var coreMLDirectoryName: String { rawValue + "-encoder.mlmodelc" }
 }
 
 /// Downloads, stores, and manages Whisper model files.
@@ -100,7 +108,23 @@ final class ModelManager: NSObject, ObservableObject {
         FileManager.default.fileExists(atPath: localURL(for: model).path)
     }
 
+    /// Whether the current Mac has Apple Silicon (CoreML acceleration available).
+    static var isAppleSilicon: Bool {
+        #if arch(arm64)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    /// Whether the CoreML encoder model is available for a given model.
+    func isCoreMLAvailable(_ model: WhisperModel) -> Bool {
+        let dir = Self.modelsDirectory.appendingPathComponent(model.coreMLDirectoryName, isDirectory: true)
+        return FileManager.default.fileExists(atPath: dir.path)
+    }
+
     /// Download a model with progress. Uses URLSessionDownloadTask.
+    /// On Apple Silicon, also downloads the CoreML encoder model for acceleration.
     func download(_ model: WhisperModel) async throws {
         guard !isDownloading else { return }
 
@@ -118,6 +142,7 @@ final class ModelManager: NSObject, ObservableObject {
         }
 
         do {
+            // Download GGML model
             let tempURL: URL = try await withCheckedThrowingContinuation { continuation in
                 self.downloadContinuation = continuation
                 let task = self.urlSession.downloadTask(with: model.downloadURL)
@@ -132,6 +157,11 @@ final class ModelManager: NSObject, ObservableObject {
             }
             try FileManager.default.moveItem(at: tempURL, to: destination)
             downloadProgress = 1.0
+
+            // On Apple Silicon, also download the CoreML encoder model
+            if Self.isAppleSilicon {
+                try await downloadCoreMLModel(model)
+            }
         } catch is CancellationError {
             downloadError = "Download cancelled."
             throw CancellationError()
@@ -143,6 +173,44 @@ final class ModelManager: NSObject, ObservableObject {
         }
     }
 
+    /// Download and unzip the CoreML encoder model for Apple Silicon acceleration.
+    private func downloadCoreMLModel(_ model: WhisperModel) async throws {
+        // Reset progress for CoreML download
+        downloadProgress = 0
+        bytesDownloaded = 0
+        totalBytes = -1
+
+        let tempZipURL: URL = try await withCheckedThrowingContinuation { continuation in
+            self.downloadContinuation = continuation
+            let task = self.urlSession.downloadTask(with: model.coreMLDownloadURL)
+            self.downloadTask = task
+            task.resume()
+        }
+
+        // Unzip to models directory
+        let destDir = Self.modelsDirectory
+        let coreMLDir = destDir.appendingPathComponent(model.coreMLDirectoryName, isDirectory: true)
+
+        // Remove existing if present
+        if FileManager.default.fileExists(atPath: coreMLDir.path) {
+            try FileManager.default.removeItem(at: coreMLDir)
+        }
+
+        // Unzip using Process (ditto or unzip)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-o", tempZipURL.path, "-d", destDir.path]
+        process.standardOutput = nil
+        process.standardError = nil
+        try process.run()
+        process.waitUntilExit()
+
+        // Clean up temp zip
+        try? FileManager.default.removeItem(at: tempZipURL)
+
+        downloadProgress = 1.0
+    }
+
     /// Cancel the current download.
     func cancelDownload() {
         downloadTask?.cancel()
@@ -150,11 +218,16 @@ final class ModelManager: NSObject, ObservableObject {
         // Continuation will be resumed with error by the delegate
     }
 
-    /// Delete a downloaded model.
+    /// Delete a downloaded model (including CoreML encoder if present).
     func delete(_ model: WhisperModel) throws {
         let url = localURL(for: model)
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
+        }
+        // Also remove CoreML encoder directory
+        let coreMLDir = Self.modelsDirectory.appendingPathComponent(model.coreMLDirectoryName, isDirectory: true)
+        if FileManager.default.fileExists(atPath: coreMLDir.path) {
+            try FileManager.default.removeItem(at: coreMLDir)
         }
     }
 
