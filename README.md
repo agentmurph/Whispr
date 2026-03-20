@@ -6,8 +6,7 @@ Whispr is a privacy-first, local-only voice transcription app for macOS. Press a
 
 Powered by [OpenAI's Whisper](https://github.com/openai/whisper) running locally via [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
 
-<!-- TODO: Add screenshot/demo GIF here -->
-<!-- ![Whispr Demo](screenshots/demo.gif) -->
+![Whispr Landing](screenshots/landing-hero.png)
 
 ---
 
@@ -43,7 +42,7 @@ Powered by [OpenAI's Whisper](https://github.com/openai/whisper) running locally
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/whispr.git
+git clone https://github.com/agentmurph/Whispr.git
 cd whispr
 
 # Build
@@ -125,13 +124,14 @@ Access via menu bar icon → Settings:
 
 ## 📸 Screenshots
 
-<!-- TODO: Add screenshots -->
-<!--
-![Menu Bar](screenshots/menubar.png)
-![Recording](screenshots/recording.png)
-![Settings](screenshots/settings.png)
-![Onboarding](screenshots/onboarding.png)
--->
+### App Preview — Recording & Settings
+![App Preview](screenshots/app-preview.png)
+
+### Features
+![Features](screenshots/features.png)
+
+### Roadmap
+![Roadmap](screenshots/roadmap.png)
 
 ## 🛠️ Development
 
@@ -195,4 +195,6 @@ MIT — do whatever you want with it.
 
 ---
 
-*Built with 🌌 by [Whispr contributors](../../graphs/contributors)*
+🌐 **[Landing Page](https://agentmurph.github.io/Whispr/)** · 📦 **[Download DMG](https://github.com/agentmurph/Whispr/releases/download/v1.0.0/Whispr-1.0.0.dmg)** · 🏷️ **[Releases](https://github.com/agentmurph/Whispr/releases)**
+
+*Built with 🌌 by Murph & Coop*
