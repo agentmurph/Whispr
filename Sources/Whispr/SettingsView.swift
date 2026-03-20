@@ -486,7 +486,7 @@ struct AudioDevicePicker: View {
             }
         }
         .onAppear { refreshDevices() }
-        .onChange(of: selectedDeviceID) { _, newValue in
+        .onChange(of: selectedDeviceID) { newValue in
             // For now we use the system default via AVAudioEngine.
             // A future version could set the preferred input device.
             UserDefaults.standard.set(Int(newValue), forKey: "preferredAudioDeviceID")

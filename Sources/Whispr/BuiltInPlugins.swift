@@ -172,10 +172,10 @@ private struct TimestampLoggerSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Prepend timestamp to transcription", isOn: $prepend)
-                .onChange(of: prepend) { _, val in plugin.setPrepend(val) }
+                .onChange(of: prepend) { val in plugin.setPrepend(val) }
 
             Toggle("Log transcriptions to file", isOn: $logToFile)
-                .onChange(of: logToFile) { _, val in plugin.setLogToFile(val) }
+                .onChange(of: logToFile) { val in plugin.setLogToFile(val) }
 
             Text("Log file: ~/Library/Application Support/Whispr/transcription-log.txt")
                 .font(.caption)
@@ -267,7 +267,7 @@ private struct ProfanityFilterSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Strict mode (filter mild profanity too)", isOn: $strict)
-                .onChange(of: strict) { _, val in
+                .onChange(of: strict) { val in
                     UserDefaults.standard.set(val, forKey: "plugin.profanityFilter.strict")
                 }
 

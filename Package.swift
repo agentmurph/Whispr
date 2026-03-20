@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "Whispr",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v13)
     ],
     products: [
         .executable(name: "Whispr", targets: ["Whispr"])

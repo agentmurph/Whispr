@@ -75,7 +75,7 @@ struct WhisprApp: App {
             Divider()
 
             if !appState.transcribedText.isEmpty {
-                Text("Last: \(appState.transcribedText.prefix(60))…")
+                Text("Last: \(String(appState.transcribedText.prefix(60)))…")
                     .lineLimit(1)
                 Divider()
             }
