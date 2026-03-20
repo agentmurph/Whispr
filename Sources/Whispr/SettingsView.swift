@@ -11,13 +11,16 @@ struct SettingsView: View {
             generalTab
                 .tabItem { Label("General", systemImage: "gear") }
 
+            textProcessingTab
+                .tabItem { Label("Text", systemImage: "textformat") }
+
             modelTab
                 .tabItem { Label("Models", systemImage: "brain") }
 
             audioTab
                 .tabItem { Label("Audio", systemImage: "mic") }
         }
-        .frame(width: 500, height: 380)
+        .frame(width: 500, height: 420)
     }
 
     // MARK: - General
@@ -46,6 +49,26 @@ struct SettingsView: View {
             Section("Text Injection") {
                 Toggle("Use clipboard paste (⌘V) instead of keystrokes", isOn: $appState.useClipboardFallback)
                 Text("Enable this if text isn't appearing in some apps (e.g., secure text fields).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+
+    // MARK: - Text Processing
+
+    private var textProcessingTab: some View {
+        Form {
+            Section("Post-Processing") {
+                Toggle("Trim leading/trailing whitespace", isOn: $appState.trimWhitespace)
+                Toggle("Auto-capitalize first letter of sentences", isOn: $appState.autoCapitalize)
+                Toggle("Ensure sentences end with punctuation", isOn: $appState.ensurePunctuation)
+            }
+
+            Section {
+                Text("These transformations are applied to transcribed text before it's typed into the target app.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -179,7 +179,8 @@ struct WhisprApp: App {
                     loadModelIfNeeded()
                 }
 
-                let text = try await whisperEngine.transcribe(buffer)
+                let rawText = try await whisperEngine.transcribe(buffer)
+                let text = TextPostProcessor.process(rawText, options: appState.textProcessingOptions)
                 appState.transcribedText = text
 
                 // Inject text (auto-detects secure fields and falls back to clipboard paste)

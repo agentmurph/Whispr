@@ -41,6 +41,21 @@ final class AppState: ObservableObject {
     @Published var useClipboardFallback: Bool = false
     @Published var launchAtLogin: Bool = false
 
+    // MARK: - Text Processing
+
+    @AppStorage("textProcessing.trimWhitespace") var trimWhitespace: Bool = true
+    @AppStorage("textProcessing.autoCapitalize") var autoCapitalize: Bool = true
+    @AppStorage("textProcessing.ensurePunctuation") var ensurePunctuation: Bool = true
+
+    /// Build current post-processing options from settings.
+    var textProcessingOptions: TextPostProcessor.Options {
+        TextPostProcessor.Options(
+            trimWhitespace: trimWhitespace,
+            autoCapitalize: autoCapitalize,
+            ensurePunctuation: ensurePunctuation
+        )
+    }
+
     // MARK: - Onboarding
 
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
