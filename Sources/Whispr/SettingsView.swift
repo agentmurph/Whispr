@@ -69,10 +69,34 @@ struct SettingsView: View {
 
     private var textProcessingTab: some View {
         Form {
-            Section("Post-Processing") {
+            Section("Basic") {
                 Toggle("Trim leading/trailing whitespace", isOn: $appState.trimWhitespace)
                 Toggle("Auto-capitalize first letter of sentences", isOn: $appState.autoCapitalize)
                 Toggle("Ensure sentences end with punctuation", isOn: $appState.ensurePunctuation)
+            }
+
+            Section("Formatting") {
+                Toggle("Smart quotes (curly quotes)", isOn: $appState.smartQuotes)
+                    Text("Replace straight quotes \" ' with typographic curly quotes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                Toggle("Spell out small numbers (0–10)", isOn: $appState.numberFormatting)
+                    Text("Converts standalone digits like \"3\" → \"three\".")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+            }
+
+            Section("Cleanup") {
+                Toggle("Remove filler words (um, uh, you know…)", isOn: $appState.removeFillerWords)
+                    Text("Strips common speech fillers from transcription.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                Toggle("Auto-paragraph on long pauses", isOn: $appState.autoParagraph)
+                    Text("Inserts line breaks when whisper detects a pause ≥ 2 seconds between segments.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
             }
 
             Section {

@@ -181,8 +181,8 @@ struct WhisprApp: App {
                     loadModelIfNeeded()
                 }
 
-                let rawText = try await whisperEngine.transcribe(buffer)
-                let processed = TextPostProcessor.process(rawText, options: appState.textProcessingOptions)
+                let result = try await whisperEngine.transcribeWithTimestamps(buffer)
+                let processed = TextPostProcessor.process(result.text, options: appState.textProcessingOptions, segmentGaps: result.segmentGaps)
 
                 // Check for snippet match — if a trigger phrase matches, inject the snippet instead
                 let text: String

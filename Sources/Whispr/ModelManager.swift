@@ -1,14 +1,32 @@
 import Foundation
 import Combine
 
-/// Available Whisper models (English-only).
+/// Available Whisper models — both English-only and multilingual.
 enum WhisperModel: String, CaseIterable, Identifiable {
+    // English-only models
     case tinyEn   = "ggml-tiny.en"
     case baseEn   = "ggml-base.en"
     case smallEn  = "ggml-small.en"
     case mediumEn = "ggml-medium.en"
 
+    // Multilingual models
+    case tiny     = "ggml-tiny"
+    case base     = "ggml-base"
+    case small    = "ggml-small"
+    case medium   = "ggml-medium"
+
     var id: String { rawValue }
+
+    /// Whether this is an English-only model.
+    var isEnglishOnly: Bool {
+        switch self {
+        case .tinyEn, .baseEn, .smallEn, .mediumEn: return true
+        case .tiny, .base, .small, .medium: return false
+        }
+    }
+
+    /// Whether this model supports multiple languages (auto-detect).
+    var isMultilingual: Bool { !isEnglishOnly }
 
     var displayName: String {
         switch self {
@@ -16,6 +34,10 @@ enum WhisperModel: String, CaseIterable, Identifiable {
         case .baseEn:   return "Base (English)"
         case .smallEn:  return "Small (English)"
         case .mediumEn: return "Medium (English)"
+        case .tiny:     return "Tiny (Multilingual)"
+        case .base:     return "Base (Multilingual)"
+        case .small:    return "Small (Multilingual)"
+        case .medium:   return "Medium (Multilingual)"
         }
     }
 
@@ -28,17 +50,26 @@ enum WhisperModel: String, CaseIterable, Identifiable {
         case .baseEn:   return "142 MB"
         case .smallEn:  return "466 MB"
         case .mediumEn: return "1.5 GB"
+        case .tiny:     return "75 MB"
+        case .base:     return "142 MB"
+        case .small:    return "466 MB"
+        case .medium:   return "1.5 GB"
         }
     }
 
     /// Speed description for UI.
     var speedLabel: String {
         switch self {
-        case .tinyEn:   return "~10× realtime"
-        case .baseEn:   return "~7× realtime"
-        case .smallEn:  return "~3× realtime"
-        case .mediumEn: return "~1× realtime"
+        case .tinyEn, .tiny:     return "~10× realtime"
+        case .baseEn, .base:     return "~7× realtime"
+        case .smallEn, .small:   return "~3× realtime"
+        case .mediumEn, .medium: return "~1× realtime"
         }
+    }
+
+    /// Language support label for the model tab.
+    var languageLabel: String {
+        isEnglishOnly ? "English only" : "99 languages · Auto-detect"
     }
 
     var downloadURL: URL {
@@ -52,6 +83,16 @@ enum WhisperModel: String, CaseIterable, Identifiable {
 
     /// Expected directory name for the CoreML encoder model.
     var coreMLDirectoryName: String { rawValue + "-encoder.mlmodelc" }
+
+    /// English-only models.
+    static var englishOnly: [WhisperModel] {
+        [.tinyEn, .baseEn, .smallEn, .mediumEn]
+    }
+
+    /// Multilingual models.
+    static var multilingual: [WhisperModel] {
+        [.tiny, .base, .small, .medium]
+    }
 }
 
 /// Downloads, stores, and manages Whisper model files.

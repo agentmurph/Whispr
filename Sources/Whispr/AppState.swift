@@ -46,13 +46,21 @@ final class AppState: ObservableObject {
     @AppStorage("textProcessing.trimWhitespace") var trimWhitespace: Bool = true
     @AppStorage("textProcessing.autoCapitalize") var autoCapitalize: Bool = true
     @AppStorage("textProcessing.ensurePunctuation") var ensurePunctuation: Bool = true
+    @AppStorage("textProcessing.smartQuotes") var smartQuotes: Bool = false
+    @AppStorage("textProcessing.numberFormatting") var numberFormatting: Bool = false
+    @AppStorage("textProcessing.removeFillerWords") var removeFillerWords: Bool = false
+    @AppStorage("textProcessing.autoParagraph") var autoParagraph: Bool = false
 
     /// Build current post-processing options from settings.
     var textProcessingOptions: TextPostProcessor.Options {
         TextPostProcessor.Options(
             trimWhitespace: trimWhitespace,
             autoCapitalize: autoCapitalize,
-            ensurePunctuation: ensurePunctuation
+            ensurePunctuation: ensurePunctuation,
+            smartQuotes: smartQuotes,
+            numberFormatting: numberFormatting,
+            removeFillerWords: removeFillerWords,
+            autoParagraph: autoParagraph
         )
     }
 
