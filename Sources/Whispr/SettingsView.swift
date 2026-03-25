@@ -158,6 +158,18 @@ struct SettingsView: View {
                     ))
                 }
 
+                // MARK: Recording Overlay
+                Section("Recording Overlay") {
+                    Picker("Overlay Style", selection: $appState.overlayStyle) {
+                        Text("Standard").tag("standard")
+                        Text("Mini").tag("mini")
+                    }
+                    .pickerStyle(.segmented)
+                    Text("Mini mode shows a small floating pill instead of the full overlay")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 // MARK: Text Injection
                 Section("Text Injection") {
                     Toggle("Always use clipboard paste (⌘V)", isOn: $appState.useClipboardFallback)

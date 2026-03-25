@@ -176,6 +176,10 @@ final class AppState: ObservableObject {
         set { streamingOutputSpeedRaw = newValue.rawValue }
     }
 
+    // MARK: - Overlay Style
+
+    @AppStorage("overlayStyle") var overlayStyle: String = "standard"
+
     // MARK: - Onboarding
 
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false

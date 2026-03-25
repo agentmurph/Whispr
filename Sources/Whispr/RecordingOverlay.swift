@@ -218,6 +218,70 @@ struct StreamingCaptionView: View {
     }
 }
 
+// MARK: - Mini Recording Overlay View
+
+@MainActor
+struct MiniRecordingOverlayView: View {
+    @ObservedObject var appState: AppState
+    var onStop: @MainActor () -> Void
+
+    @State private var isPulsing: Bool = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            // Main pill
+            HStack(spacing: 8) {
+                // Pulsing red dot
+                Circle()
+                    .fill(.red)
+                    .frame(width: 10, height: 10)
+                    .opacity(isPulsing ? 0.3 : 1.0)
+                    .onAppear { isPulsing = true }
+                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
+
+                // Elapsed time
+                Text(miniFormattedElapsed)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.primary)
+
+                // Stop button
+                Button {
+                    onStop()
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+
+            // Streaming partial text below the pill
+            if appState.streamingEnabled && !appState.partialTranscription.isEmpty {
+                Text(appState.partialTranscription)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.85))
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: 200)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: appState.partialTranscription)
+            }
+        }
+    }
+
+    private var miniFormattedElapsed: String {
+        let m = Int(appState.elapsed) / 60
+        let s = Int(appState.elapsed) % 60
+        return String(format: "%d:%02d", m, s)
+    }
+}
+
 // MARK: - Overlay Controller
 
 /// Manages showing/hiding the NSPanel overlay.
@@ -227,6 +291,14 @@ final class OverlayController {
     private var panel: OverlayPanel?
 
     func show(appState: AppState, onStop: @escaping @MainActor () -> Void, onCancel: @escaping @MainActor () -> Void) {
+        if appState.overlayStyle == "mini" {
+            showMini(appState: appState, onStop: onStop)
+        } else {
+            showStandard(appState: appState, onStop: onStop, onCancel: onCancel)
+        }
+    }
+
+    private func showStandard(appState: AppState, onStop: @escaping @MainActor () -> Void, onCancel: @escaping @MainActor () -> Void) {
         let view = RecordingOverlayView(appState: appState, onStop: onStop, onCancel: onCancel)
 
         let panelHeight: CGFloat = appState.streamingEnabled ? 300 : 200
@@ -239,6 +311,29 @@ final class OverlayController {
             x: screenFrame.midX - 140,
             y: screenFrame.midY - panelHeight / 2,
             width: 280,
+            height: panelHeight
+        )
+
+        let p = OverlayPanel(contentRect: panelRect)
+        p.contentView = hostingView
+        p.orderFrontRegardless()
+        panel = p
+    }
+
+    private func showMini(appState: AppState, onStop: @escaping @MainActor () -> Void) {
+        let view = MiniRecordingOverlayView(appState: appState, onStop: onStop)
+
+        let panelWidth: CGFloat = 130
+        let panelHeight: CGFloat = appState.streamingEnabled ? 70 : 40
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.frame = NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight)
+
+        // Position near top-center of screen
+        let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+        let panelRect = NSRect(
+            x: screenFrame.midX - panelWidth / 2,
+            y: screenFrame.maxY - panelHeight - 20,
+            width: panelWidth,
             height: panelHeight
         )
 
